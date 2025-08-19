@@ -22,6 +22,10 @@ Scriptoria streamlines this by allowing you to work with the transcript as the c
 
 4.  **Integrate with Premiere Pro:** Once your narrative is structured, **Alt+Drag** a text block from Scriptoria's Script Editor and drop it onto your Premiere Pro project window. This action simulates a search command, which locates and scrubs to in the timeline that exact text segment within your Premiere sequence, ready for you to splice into your timeline.
 
+<div style="text-align: center;">
+  <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
+</div>
+
 ## A General-Purpose Tool for Text
 
 While designed for video editors, Scriptoria's feature set makes it a capable tool for anyone working with long-form text:
@@ -54,10 +58,6 @@ Download the latest release from the [Releases page](https://github.com/your-use
 
 **macOS:**
 This application is currently built for Windows and a macOS version is not available.
-
-<div style="text-align: center;">
-  <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
-</div>
 
 
 ## Dependencies
