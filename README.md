@@ -6,6 +6,10 @@
 
 Scriptoria provides a text-based workflow for video editors to use AI to structure video captions into a structured and interactive text transcript. It is also a versatile tool for marking up and analyzing long-form documents like books and articles. Imported text gets automatically or manually formatted via a simple syntax system into a Scriptoria based format. Users then turn this into transcripts with custom themes/tags and highlight colors. Standout features include a Script Editor to create and arrange scripts, a robust tagging and filtering system, an interactive transcript with JS embedded functionality like tooltips that can be exported and delivered to clients as an HTML file, Adobe Premiere Pro drag and drop, Gemini API integration, and much more.
 
+<div style="text-align: center;">
+  <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
+</div>
+
 ## The Main Problem It is Intended to Solve
 
 For video editors working with interviews, documentaries, or event footage, the process of finding the right soundbites ("paper editing") can be slow and cumbersome. It often involves scrubbing through hours of footage or manually cross-referencing paper transcripts with timestamps. Video editors, like Adobe Premiere Pro are designed around video editing and as such the ability to structure narratives within the program is weighed down by a UI and UX that is designed to interact with video first and foremost. Not only that it is CPU and GPU intensive. Scriptoria circumvents that overhead and is designed to develop scripts and narrative in a more intuitive way.
@@ -21,10 +25,6 @@ Scriptoria streamlines this by allowing you to work with the transcript as the c
 3.  **Arrange in the Script Editor:** Every highlight you create becomes a movable block or **Annotation** in the **Theme Panel**. Here, you can drag and drop these blocks into the **Script Editor** to arrange your narrative. You can also **strikethrough** parts of text that you will cut out, mark segments as "used" by your edit, see estimated script length in minutes, and export the script as a PDF file to share.
 
 4.  **Integrate with Premiere Pro:** Once your narrative is structured, **Alt+Drag** a text block from Scriptoria's Script Editor and drop it onto your Premiere Pro project window. This action simulates a search command, which locates and scrubs to in the timeline that exact text segment within your Premiere sequence, ready for you to splice into your timeline.
-
-<div style="text-align: center;">
-  <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
-</div>
 
 ## A General-Purpose Tool for Text
 
