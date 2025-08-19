@@ -10,7 +10,7 @@ Scriptoria provides a text-based workflow for video editors to use AI to structu
   <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
 </div>
 
-## The Main Problem It is Intended to Solve
+## What it solves
 
 For video editors working with interviews, documentaries, or event footage, the process of finding the right soundbites ("paper editing") can be slow and cumbersome. It often involves scrubbing through hours of footage or manually cross-referencing paper transcripts with timestamps. Video editors, like Adobe Premiere Pro are designed around video editing and as such the ability to structure narratives within the program is weighed down by a UI and UX that is designed to interact with video first and foremost. Not only that it is CPU and GPU intensive. Scriptoria circumvents that overhead and is designed to develop scripts and narrative in a more intuitive way.
 
