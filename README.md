@@ -1,4 +1,6 @@
-<img src="Img/splash-screen.png" alt="Splash Screen of Scriptoria" width="300" height="300">
+   <div align="center">
+     <img src="Img/splash-screen.png" alt="Splash Screen of Scriptoria" width="300" height="300">
+   </div>
 
 # Scriptoria: A Text-Based Video Editing Companion, and General Purpose EReader with Theme-Centered Highlighting and Annotating, Gemini API integration
 
