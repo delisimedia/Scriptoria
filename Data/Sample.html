@@ -1,0 +1,1563 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><title>tEST</title><style>
+            /* Modern CSS Reset and Base Styles */
+            *, *::before, *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            :root {
+                --primary-color: #2D3250;
+                --accent-color: #7077A1;
+                --background-color: #faf9f8;
+                --text-color: #2C3333;
+                --sidebar-width: 300px;
+                --content-max-width: 900px;
+                --spacing-unit: 1rem;
+                --success-color: #4CAF50;
+                --success-bg: #E8F5E9;
+                --success-hover: #C8E6C9;
+            }
+
+            body {
+                font-family: 'Open Sans', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                line-height: 1.65;
+                background-color: var(--background-color);
+                color: var(--text-color);
+            }
+
+            /* NOTES HTML INDICATOR CSS - UPDATED FOR TOP-LEFT POSITION */
+            /* Base highlight enhancement */
+            span[data-annotation-id] {
+                transition: all 0.2s ease;
+                position: relative; /* Ensures the span is the positioning context for ::before */
+                overflow: visible;  /* Allows the ::before to be visible outside the span bounds */
+            }
+
+            span[data-annotation-id]:hover {
+                filter: brightness(1.1);
+                box-shadow: 0 0 5px rgba(255, 165, 0, 0.5);
+            }
+
+            /* Info icon for spans with notes_html - POSITIONED AT TOP-LEFT START */
+            span[data-annotation-id][data-notes-html]:not([data-notes-html=""]):not([data-notes-html="null"])::before { /* CHANGED to ::before */
+                content: "ℹ";
+                position: absolute;
+                /* Position relative to the top-left corner of the span's bounding box */
+                top: -10px;         /* Adjust as needed: Places it slightly above the span */
+                left: -5px;          /* Adjust as needed: Places it slightly to the left of the span's start */
+                font-size: 10px;
+                color: white;
+                background-color: #2196F3; /* Blue background */
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1;
+                font-weight: bold;
+                pointer-events: none; /* Important: Icon doesn't interfere with mouse events */
+                border: 1px solid white;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+                z-index: 100;        /* Ensure it's visually on top */
+            }
+        
+            /* Updated Tooltip Styles with Scroll and Sticky Headers */
+            .notes-tooltip {
+                position: absolute;
+                background-color: #F8F8FC; /* Lighter background for better contrast */
+                color: #2C3333;
+                border-radius: 8px;
+                padding: 12px;
+                box-shadow: 0 3px 15px rgba(0, 0, 0, 0.15);
+                z-index: 1000;
+                max-width: 350px;
+                max-height: 650px; /* Set maximum height */
+                width: auto;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 14px;
+                border: 1px solid #E6E6EF;
+                overflow: hidden; /* Hide overflow on the main tooltip container */
+            }
+
+            .notes-tooltip.visible {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .tooltip-title {
+                display: flex;
+                align-items: center;
+                margin-bottom: 10px;
+                font-weight: bold;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+                padding-bottom: 8px;
+                color: #2D3250; /* Match primary color from your CSS */
+                cursor: pointer; /* Make it clear this is clickable */
+                padding: 4px 6px;
+                border-radius: 4px;
+                margin: -4px -6px 6px -6px;
+                transition: background-color 0.15s ease;
+                position: sticky;
+                top: -12px; /* Offset by the tooltip's padding */
+                background-color: #F8F8FC; /* Match tooltip background */
+                z-index: 2;
+            }
+            
+            .tooltip-title:hover {
+                background-color: rgba(112, 119, 161, 0.1); /* Subtle hover effect */
+            }
+
+            .tooltip-icon {
+                margin-right: 8px;
+                font-size: 18px;
+                color: #7077A1; /* Match accent color from your CSS */
+            }
+
+            .tooltip-content {
+                line-height: 1.5;
+                overflow-wrap: break-word;
+                max-height: calc(400px - 24px); /* Adjust for padding */
+                position: relative;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .tooltip-scene {
+                font-weight: bold;
+                margin-bottom: 8px;
+                /* Default color - will be overridden by JavaScript for specific scenes */
+                color: #7077A1;
+                position: sticky;
+                top: 30px; /* Position below the title */
+                background-color: #F8F8FC; /* Match tooltip background */
+                z-index: 1;
+                padding: 4px 0;
+            }
+
+            .tooltip-footnote {
+                margin-bottom: 8px;
+                color: #4D4D4D;
+                position: sticky;
+                top: 60px; /* Position below the scene */
+                background-color: #F8F8FC; /* Match tooltip background */
+                z-index: 1;
+                padding: 4px 0;
+            }
+
+            .tooltip-html-notes {
+                border-top: 1px dotted rgba(0, 0, 0, 0.1);
+                padding-top: 8px;
+                color: #333333;
+                overflow-y: auto; /* Add scrolling to this section only */
+                max-height: 500px; /* Limit height for scrolling */
+                margin-right: -6px; /* Compensate for scrollbar */
+                padding-right: 6px; /* Add padding for scrollbar */
+            }
+
+            /* Style for the tooltip scrollbar */
+            .tooltip-html-notes::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            .tooltip-html-notes::-webkit-scrollbar-track {
+                background: #F1F1F1;
+                border-radius: 3px;
+            }
+
+            .tooltip-html-notes::-webkit-scrollbar-thumb {
+                background: #C0C0C0;
+                border-radius: 3px;
+            }
+
+            .tooltip-html-notes::-webkit-scrollbar-thumb:hover {
+                background: #A0A0A0;
+            }
+
+            /* Sidebar Layout */
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: var(--sidebar-width);
+                height: 100vh;
+                background: white;
+                border-right: 1px solid rgba(0, 0, 0, 0.05);
+                display: flex;
+                flex-direction: column;
+                z-index: 100;
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+            }
+
+                /* Bookmark Styles */
+                .bookmark-container {
+                    position: absolute;
+                    top: 0rem;
+                    right: .05rem;
+                    cursor: pointer;
+                    z-index: 2;
+                }
+
+                .bookmark-icon {
+                    width: 24px;
+                    height: 32px;
+                    transition: transform 0.2s ease;
+                }
+
+                .bookmark-icon:hover {
+                    transform: scale(1.1);
+                }
+
+                .speech-header {
+                    position: relative;  /* Added to support absolute positioning of bookmark */
+                }
+
+                /* Update existing speech header styles */
+                .speech-header {
+                    display: flex;
+                    align-items: center;
+                    position: relative;
+                    margin-bottom: 1.3rem;
+                    padding-right: 40px;  /* Make room for bookmark */
+                }
+
+            .speech-checkbox {
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                appearance: none;
+                -webkit-appearance: none;
+                width: 24px;
+                height: 24px;
+                border: 2px solid var(--accent-color);
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                margin-left: 0px; /* Add some space from the left edge */
+                margin-right:5px;
+            }
+
+            .speech-title {
+                flex: 1;
+                text-align: left;
+                font-size: 1.8rem;
+                font-weight: 700;
+                color: var(--primary-color);
+                margin: 0;
+                letter-spacing: -0.02em;
+                padding: 0 35px; /* Add padding to account for checkbox width */
+            }
+
+            /* Progress Bar Styles */
+            .progress-container {
+                padding: .35rem var(--spacing-unit);
+                border-bottom: 0px solid rgba(0, 0, 0, 0.1);
+                background: white;
+            }
+
+            .progress-info {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.25rem;
+                font-size: 0.9rem;
+                color: var(--text-color);
+            }
+
+            .progress-percentage {
+                font-weight: 600;
+                color: var(--success-color);
+            }
+
+            /* Add or update these styles in get_css_styles */
+            .progress-bar {
+                width: 100%;
+                height: 8px;
+                background: rgba(0, 0, 0, 0.1);
+                border-radius: 4px;
+                overflow: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .progress-fill {
+                height: 100%;
+                background: var(--accent-color);
+                border-radius: 4px;
+                transition: all 0.3s ease;
+                width: 0;
+            }
+
+            .progress-bar.completed .progress-fill {
+                background: var(--success-color);
+            }
+
+            /* Top Nav Container - New */
+            .top-nav-container {
+                display: flex;
+                gap: 0.5rem;
+                justify-content: center;
+                margin-bottom: 0.5rem;
+            }
+
+            /* Back to Top Link - Make it smaller */
+            .nav-item-top {
+                margin-bottom: 0;
+                padding: 0;
+                flex: 1;
+            }
+
+            /* Base style for both buttons */
+            .nav-link-top, .nav-link-toc {
+                display: block;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-align: center;
+                color: var(--accent-color);
+                text-decoration: none;
+                padding: 0.2rem 0.4rem;
+                border-radius: 4px;
+                background-color: rgba(112, 119, 161, 0.1);
+                transition: all 0.2s ease;
+                width: 100%;
+            }
+
+            /* Shared hover style for both buttons */
+            .nav-link-top:hover, .nav-link-toc:hover {
+                background-color: rgba(112, 119, 161, 0.2);
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(112, 119, 161, 0.1);
+            }
+
+            /* Consistent active state */
+            .nav-link-top.active, .nav-link-toc.active {
+                background-color: rgba(112, 119, 161, 0.25);
+                color: var(--primary-color);
+                font-weight: 700;
+            }
+
+            .book-transcript .nav-link-top:hover,
+            .video-transcript .nav-link-top:hover {
+                background-color: rgba(112, 119, 161, 0.2) !important;
+            }
+
+            /* Ensure the container is styled properly */
+            .top-nav-container {
+                display: flex;
+                gap: 0.5rem;
+                justify-content: center;
+                margin-bottom: 0.5rem;
+            }
+
+            .nav-item-top {
+                margin-bottom: 0;
+                padding: 0;
+                flex: 1;
+            }
+
+            .nav-item-top {
+                margin-bottom: 0;
+                padding: 0;
+                flex: 1;
+            }
+        
+            /* Table of Contents Modal */
+            .toc-modal {
+                display: none;
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                justify-content: center;
+                align-items: center;
+            }
+
+            .toc-modal-content {
+                position: relative;
+                background-color: white;
+                margin: auto;
+                padding: 1.5rem;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                max-width: 900px;
+                width: 95%;
+                max-height: 85vh;
+                overflow-y: auto;
+            }
+
+            .toc-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            }
+
+            .toc-header h3 {
+                margin: 0;
+                font-size: 1.5rem;
+                color: var(--primary-color);
+            }
+
+            .toc-close {
+                font-size: 1.8rem;
+                font-weight: bold;
+                cursor: pointer;
+                color: var(--text-color);
+            }
+
+            /* Search bar */
+            .toc-search-container {
+                position: relative;
+                margin-bottom: 1rem;
+            }
+
+            .toc-search-input {
+                width: 100%;
+                padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+                font-size: 0.95rem;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                outline: none;
+                transition: border-color 0.2s;
+            }
+
+            .toc-search-input:focus {
+                border-color: var(--accent-color);
+            }
+
+            .toc-search-icon {
+                position: absolute;
+                right: 0.75rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #777;
+                pointer-events: none;
+            }
+
+            .toc-search-results {
+                display: none;
+                margin-top: 0.5rem;
+                max-height: 50vh;
+                overflow-y: auto;
+                border: 1px solid #eee;
+                border-radius: 6px;
+                padding: 0.5rem;
+            }
+
+            .toc-no-results {
+                padding: 1rem;
+                text-align: center;
+                color: #777;
+                font-style: italic;
+            }
+
+            /* Two-column grid */
+            .toc-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+
+            .toc-column {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .toc-item {
+                display: block;
+                padding: 0.4rem 0.6rem;
+                text-decoration: none;
+                border-radius: 4px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                transition: all 0.2s;
+            }
+
+            /* Normal header styling - blue */
+            .toc-item-normal {
+                color: #2563EB; /* Blue with good contrast */
+                font-size: 0.9rem;
+            }
+
+            .toc-item-normal:hover {
+                background-color: rgba(37, 99, 235, 0.1);
+            }
+
+            /* Main header styling in TOC - Enhanced with gold color and container */
+            .toc-item-main {
+                color: #7077A1; /* Purple accent color */
+                font-size: 1.05rem; /* Slightly larger */
+                font-weight: 600;
+                background-color: rgba(112, 119, 161, 0.08); /* Very subtle purple background */
+                border-left: 3px solid #7077A1;
+                border-radius: 4px;
+                padding: 0.5rem 0.6rem;
+                margin-bottom: 0.4rem; /* Add some space below main headers */
+                box-shadow: 0 1px 3px rgba(112, 119, 161, 0.1); /* Subtle shadow */
+                position: relative;
+                overflow: visible; /* Allow pseudo-elements to extend outside */
+            }
+
+            .toc-item-main:hover {
+                background-color: rgba(112, 119, 161, 0.15);
+                box-shadow: 0 1px 4px rgba(112, 119, 161, 0.2);
+            }
+
+            /* Small indicator before main headers */
+            .toc-item-main::before {
+                content: "◆"; /* Diamond symbol */
+                position: absolute;
+                left: 0.2rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #7077A1;
+                font-size: 0.7em;
+            }
+
+
+            /* Top Nav Container */
+            .top-nav-container {
+                display: flex;
+                gap: 0.5rem;
+                justify-content: center;
+                margin-bottom: 0.5rem;
+            }
+
+            /* Back to Top and Contents links */
+            .nav-item-top {
+                margin-bottom: 0;
+                padding: 0;
+                flex: 1;
+            }
+
+            .nav-link-top, .nav-link-toc {
+                display: block;
+                font-size: 0.85rem;
+                font-weight: 600;
+                text-align: center;
+                color: var(--accent-color);
+                text-decoration: none;
+                padding: 0.2rem 0.4rem;
+                border-radius: 4px;
+                background-color: rgba(112, 119, 161, 0.1);
+                transition: background-color 0.2s;
+                width: 100%;
+            }
+
+            .nav-link-top:hover, .nav-link-toc:hover {
+                background-color: rgba(112, 119, 161, 0.2);
+            }
+
+            /* Dark mode adjustments */
+            @media (prefers-color-scheme: dark) {
+                .toc-modal-content {
+                    background-color: #2d3748;
+                }
+    
+                .toc-header {
+                    border-bottom-color: rgba(255, 255, 255, 0.1);
+                }
+    
+                .toc-search-input {
+                    background-color: #374151;
+                    border-color: #4B5563;
+                    color: white;
+                }
+    
+                .toc-search-input::placeholder {
+                    color: #9CA3AF;
+                }
+    
+                .toc-search-icon {
+                    color: #9CA3AF;
+                }
+    
+                .toc-search-results {
+                    border-color: #4B5563;
+                    background-color: #374151;
+                }
+    
+                .toc-no-results {
+                    color: #9CA3AF;
+                }
+    
+                /* Adjust colors for better contrast in dark mode */
+                .toc-item-normal {
+                    color: #60A5FA; /* Lighter blue for dark mode */
+                }
+    
+                .toc-item-normal:hover {
+                    background-color: rgba(96, 165, 250, 0.2);
+                }
+    
+                /* Main header styling in TOC - Enhanced with gold color and container */
+                .toc-item-main {
+                    color: #B45309; /* Gold with good contrast */
+                    font-size: 1.05rem; /* Slightly larger */
+                    font-weight: 600;
+                    background-color: rgba(180, 83, 9, 0.08); /* Very subtle gold background */
+                    border-left: 3px solid #B45309;
+                    border-radius: 4px;
+                    padding: 0.5rem 0.6rem;
+                    margin-bottom: 0.4rem; /* Add some space below main headers */
+                    box-shadow: 0 1px 3px rgba(180, 83, 9, 0.1); /* Subtle shadow */
+                    position: relative;
+                    overflow: visible; /* Allow pseudo-elements to extend outside */
+                }
+
+                .toc-item-main:hover {
+                    background-color: rgba(180, 83, 9, 0.15);
+                    box-shadow: 0 1px 4px rgba(180, 83, 9, 0.2);
+                }
+
+                /* Optional: Add a small indicator before main headers */
+                .toc-item-main::before {
+                    content: "◆"; /* Diamond symbol */
+                    position: absolute;
+                    left: 0.2rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: #B45309;
+                    font-size: 0.7em;
+                }
+                
+                /* Enhanced tooltip dark mode support */
+                .notes-tooltip {
+                    background-color: #2d3748;
+                    color: #e2e8f0;
+                    border-color: #4a5568;
+                }
+                
+                .tooltip-title, .tooltip-scene, .tooltip-footnote {
+                    background-color: #2d3748;
+                }
+                
+                .tooltip-title {
+                    border-bottom-color: rgba(255, 255, 255, 0.1);
+                    color: #e2e8f0;
+                }
+                
+                .tooltip-title:hover {
+                    background-color: rgba(255, 255, 255, 0.05);
+                }
+                
+                .tooltip-scene {
+                    color: #90cdf4;
+                }
+                
+                .tooltip-footnote {
+                    color: #cbd5e0;
+                }
+                
+                .tooltip-html-notes {
+                    border-top-color: rgba(255, 255, 255, 0.1);
+                    color: #e2e8f0;
+                }
+                
+                .tooltip-html-notes::-webkit-scrollbar-track {
+                    background: #4a5568;
+                }
+                
+                .tooltip-html-notes::-webkit-scrollbar-thumb {
+                    background: #718096;
+                }
+                
+                .tooltip-html-notes::-webkit-scrollbar-thumb:hover {
+                    background: #a0aec0;
+                }
+            }
+
+            /* Responsive adjustments */
+            @media (max-width: 768px) {
+                .toc-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .toc-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+            /* Dark mode adjustments */
+            @media (prefers-color-scheme: dark) {
+                .progress-container {
+                    background: #2d3748;
+                    border-bottom-color: rgba(255, 255, 255, 0.1);
+                }
+
+                .progress-bar {
+                    background: rgba(255, 255, 255, 0.1);
+                }
+
+                .progress-info {
+                    color: var(--text-color);
+                }
+            
+                .toc-modal-content {
+                    background-color: #2d3748;
+                }
+            
+                .toc-header {
+                    border-bottom-color: rgba(255, 255, 255, 0.1);
+                }
+            
+                .toc-item:hover {
+                    background-color: rgba(255, 255, 255, 0.1);
+                }
+            }
+
+            .speech-checkbox:checked {
+                background-color: var(--success-color);
+                border-color: var(--success-color);
+            }
+
+            .speech-checkbox:checked::after {
+                content: "✓";
+                position: absolute;
+                color: white;
+                font-size: 16px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+
+            .speech-checkbox:checked ~ .speech-title {
+                color: var(--success-color);
+            }
+
+            /* Navigation Link Completed State */
+            .nav-link.completed {
+                background: var(--success-bg);
+                color: var(--text-color); /* Keep text color unchanged */
+                border-color: var(--success-color);
+            }
+
+            .nav-link.completed:hover {
+                background: var(--success-hover);
+                color: var(--text-color); /* Keep text color unchanged on hover too */
+            }
+
+            /* Sticky Header */
+            .sidebar-sticky-header {
+                position: sticky;
+                top: 0;
+                background: white;
+                padding: calc(var(--spacing-unit) * 2) calc(var(--spacing-unit) * 2) var(--spacing-unit);
+                border-bottom: 2px solid #f0f0f0;
+                z-index: 10;
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .sidebar-title {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: var(--primary-color);
+            }
+
+            /* Navigation Container */
+            .nav-container {
+                flex: 1;
+                overflow-y: auto;
+                padding: var(--spacing-unit) calc(var(--spacing-unit) * 2);
+            }
+
+            .nav-list {
+                list-style: none;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            /* Main vs Normal Nav Items */
+            .nav-item-main .nav-link-main {
+                font-weight: 700;
+                text-transform: uppercase;
+                background: var(--accent-color);
+                color: white;
+            }
+
+            .nav-item-main .nav-link-main:hover {
+                background: var(--primary-color);
+            }
+
+            .nav-item-top {
+                margin-bottom: .10rem;
+                padding: 0.25rem 0.25rem;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .nav-link-top {
+                display: inline-flex; /* Keeps the element inline and allows flex properties */
+                align-items: center;  /* Vertically centers the content */
+                justify-content: center; /* Horizontally centers the content */
+                font-size: .9rem; /* Reduced font size for a smaller button */
+                font-weight: 600;
+                text-align: center
+                color: var(--accent-color);
+                text-decoration: none;
+                padding: 0.2rem 0.4rem; /* Reduced padding for a smaller button */
+                border-radius: 4px;
+                transition: background-color 0.2s;
+                margin: 0 auto; /* Centers the button within its container */
+                display: block; /* Allows margin auto to center the button */
+            }
+
+            .nav-link-top:hover {
+                background-color: var(--bg-color-hover);
+            }
+
+
+            .nav-item {
+                margin-bottom: 0.5rem;
+            }
+
+            .nav-link {
+                display: block;
+                padding: 0.75rem 1rem;
+                color: var(--text-color);
+                text-decoration: none;
+                border-radius: 12px;
+                transition: all 0.2s ease;
+                font-weight: 500;
+                text-align: left;
+                background: white;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                border: 1px solid rgba(0, 0, 0, 0.1);
+            }
+
+            .nav-link:hover {
+                background: rgba(112, 119, 161, 0.2);
+                color: var(--primary-color);
+                box-shadow: 0 2px 6px rgba(112, 119, 161, 0.2);
+            }
+
+            .nav-link.active {
+                background: var(--primary-color);
+                color: white;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            }
+
+            /* Content Layout */
+            .content {
+                margin-left: var(--sidebar-width);
+                padding: calc(var(--spacing-unit) * 3);
+                max-width: calc(var(--content-max-width) + var(--sidebar-width));
+                margin: 0 auto;
+                padding-left: calc(var(--sidebar-width) + var(--spacing-unit) * 3);
+            }
+
+            .page-title {
+                font-size: 2.5rem;
+                font-weight: 800;
+                color: var(--primary-color);
+                margin-bottom: calc(var(--spacing-unit) * 2);
+                letter-spacing: -0.03em;
+                text-align: center;
+                padding-bottom: calc(var(--spacing-unit) * 1.5);
+                border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+            }
+
+            /* Color Key */
+            .color-key {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                padding: 1.5rem;
+                border-radius: 16px;
+                margin-bottom: calc(var(--spacing-unit) * 2);
+                justify-content: center;
+            }
+
+            .key-item {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.5rem 1rem;
+                border-radius: 8px;
+                font-weight: 500;
+            }
+
+            .color-box {
+                width: 24px;
+                height: 24px;
+                border-radius: 6px;
+                border: 2px solid rgba(0, 0, 0, 0.1);
+            }
+
+            /* Speeches and Content */
+            .speech {
+                background: white;
+                padding: calc(var(--spacing-unit) * 2);
+                margin-bottom: calc(var(--spacing-unit) * 2);
+                border-radius: 16px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+                           0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                transition: transform 0.2s ease;
+            }
+
+            .speech-title {
+                font-size: 1.8rem;
+                font-weight: 700;
+                color: var(--primary-color);
+                margin: 0;
+                letter-spacing: -0.02em;
+            }
+
+            .speech-content {
+                font-size: 1.05rem;
+                line-height: 1.8;
+                color: var(--text-color);
+            }
+
+            .speech-content p {
+                margin-bottom: 1rem;
+                text-align: justify;
+            }
+
+            .speech-content p:last-child {
+                margin-bottom: 0;
+            }
+
+            /* Divider */
+            .divider {
+                text-align: center;
+                margin: calc(var(--spacing-unit) * 3) 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 1rem;
+            }
+
+            .divider::before,
+            .divider::after {
+                content: "";
+                flex: 1;
+                height: 2px;
+                background: linear-gradient(to right, transparent, var(--accent-color), transparent);
+            }
+
+            .divider-icon {
+                color: var(--accent-color);
+                font-size: 1.5rem;
+            }
+
+            /* Update the Main Headers in the content area */
+            .main-header-section {
+                margin: 3.0rem 0 4.0rem 0; /* Increased margin, especially after */
+                text-align: center;
+                position: relative;
+                padding-bottom: 2.5rem; /* Add some padding at bottom */
+                padding-top: .85rem;
+            }
+
+            .main-header {
+                font-size: 2.0rem; /* Slightly larger */
+                font-weight: 800;
+                color: var(--primary-color);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 1rem;
+                border-bottom: 2px solid var(--accent-color);
+                display: inline-block;
+                padding: 0.25rem 0.75rem 0.5rem; /* Add side padding */
+            }
+
+            /* Responsive adjustments */
+            @media (max-width: 768px) {
+                .main-header-section {
+                    margin: 2rem 0 2.5rem 0; /* Slightly less space on mobile */
+                }
+    
+                .main-header {
+                    font-size: 1.8rem; /* Smaller on mobile */
+                }
+            }
+
+            /* Menu Toggle */
+            .menu-toggle {
+                display: none;
+                position: fixed;
+                top: 1rem;
+                left: 1rem;
+                z-index: 1000;
+                padding: 0.5rem;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                border: none;
+                cursor: pointer;
+            }
+
+            .book-transcript .nav-link-top {
+                color: var(--text-color);
+                background-color: var(--bg-color-secondary);
+            }
+
+            .video-transcript .nav-link-top {
+                color: var(--accent-color);
+                background-color: var(--bg-color-hover);
+            }
+
+            /* Book Transcript Specific Styles */
+            .book-transcript .nav-link {
+                font-size: 0.9rem;
+                padding: 0.5rem 0.75rem;
+            }
+
+            .book-transcript .page-title {
+                font-size: 2rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .book-transcript .speech-title {
+                font-size: 1.4rem;
+                margin-bottom: 0.00rem;
+                text-align: left;
+            }
+
+            .book-transcript .speech-header {
+                margin-bottom: 0.00rem;
+                text-align: left;
+            }
+
+            .book-transcript .speech-content p {
+                margin-top: 0.25rem;
+            }
+
+            .book-transcript .speech {
+                margin-bottom: 1rem !important;
+            }
+
+            .book-transcript .sidebar-sticky-header {
+                padding: calc(var(--spacing-unit) * 1.5) var(--spacing-unit);
+            }
+
+            /* Dark Mode */
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --background-color: #1a1f2c;
+                    --text-color: #e2e8f0;
+                    --primary-color: #7077A1;
+                    --success-bg: #1B5E20;
+                    --success-hover: #2E7D32;
+                }
+
+                body {
+                    background-color: var(--background-color);
+                }
+
+                .sidebar,
+                .sidebar-sticky-header,
+                .speech {
+                    background: #2d3748;
+                }
+
+                .nav-link {
+                    background: #2d3748;
+                    border-color: rgba(255, 255, 255, 0.1);
+                }
+
+                .nav-link.completed {
+                    background: var(--success-bg);
+                    color: white;
+                }
+
+                .nav-link.completed:hover {
+                    background: var(--success-hover);
+                }
+
+                .speech-checkbox {
+                    border-color: var(--accent-color);
+                }
+
+                .speech-content {
+                    color: #cbd5e0;
+                }
+
+                .menu-toggle {
+                    background: #2d3748;
+                    color: var(--text-color);
+                }
+            }
+
+            /* Responsive Design */
+            @media (max-width: 1024px) {
+                :root {
+                    --sidebar-width: 250px;
+                }
+            }
+
+            /* Responsive Design - completing the mobile styles */
+            @media (max-width: 768px) {
+                .sidebar {
+                    transform: translateX(-100%);
+                    transition: transform 0.3s ease;
+                }
+
+                .sidebar.active {
+                    transform: translateX(0);
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: var(--spacing-unit);
+                }
+
+                .menu-toggle {
+                    display: block;
+                }
+
+                .sidebar-sticky-header {
+                    padding: var(--spacing-unit);
+                }
+
+                .nav-container {
+                    padding: var(--spacing-unit);
+                }
+            
+                .toc-columns {
+                    flex-direction: column;
+                }
+            }
+
+            /* Custom scrollbar styles */
+            .nav-container {
+                scrollbar-width: thin;
+                scrollbar-color: var(--accent-color) transparent;
+            }
+
+            .nav-container::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            .nav-container::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .nav-container::-webkit-scrollbar-thumb {
+                background-color: var(--accent-color);
+                border-radius: 3px;
+            }
+        </style><script src="qrc:///qtwebchannel/qwebchannel.js" type="text/javascript"></script><script src="qrc:///qtwebchannel/qwebchannel.js"></script></head><body class="book-transcript" contenteditable="false"><button aria-label="Toggle navigation" class="menu-toggle">☰</button><div class="sidebar"><div class="sidebar-sticky-header"><div class="sidebar-title">Navigation</div><div class="progress-container"><div class="progress-info"><span class="progress-text">Reading Progress</span><span class="progress-percentage">0%</span></div><div class="progress-bar"><div class="progress-fill" style="width: 0%; background-color: var(--accent-color);"></div></div></div><div class="top-nav-container"><div class="nav-item-top"><a class="nav-link nav-link-top active" href="#top">Top</a></div><div class="nav-item-top"><a class="nav-link nav-link-toc" href="#" id="toc-button">Contents</a></div></div></div><div class="nav-container"><ul class="nav-list"><li class="nav-item nav-item-main"><a class="nav-link nav-link-main" data-speech-id="speech-0" href="#speech-0">PART 1</a></li><li class="nav-item"><a class="nav-link" data-speech-id="speech-1" href="#speech-1">Introduction</a></li><li class="nav-item"><a class="nav-link" data-speech-id="speech-2" href="#speech-2">Main Section</a></li><li class="nav-item nav-item-main"><a class="nav-link nav-link-main" data-speech-id="speech-3" href="#speech-3">PART 2</a></li><li class="nav-item"><a class="nav-link" data-speech-id="speech-4" href="#speech-4">Conclusion</a></li></ul></div></div><main class="content"><h1 class="page-title" id="top">tEST</h1><div class="color-key"><div class="key-item"><span class="color-box" style="background-color: #FFF0B3;"></span> Theme 1</div><div class="key-item"><span class="color-box" style="background-color: #B4E4FF;"></span> Theme 2</div><div class="key-item"><span class="color-box" style="background-color: #FFD7DC;"></span> Theme 3</div><div class="key-item"><span class="color-box" style="background-color: #D7FFB8;"></span> Theme 4</div></div><div class="main-header-section" id="speech-0"><h2 class="main-header">PART 1</h2></div><article class="speech"><div class="speech-header"><input class="speech-checkbox" data-speech-id="speech-1" type="checkbox"><h2 class="speech-title" id="speech-1">Introduction</h2><div class="bookmark-container"><img class="bookmark-icon" data-bookmarked="false" data-speech-id="speech-1" src="file:///I:/Programs/Program Backend/Video Transcript Manager - backend/Img/bookmark.png?t=1743336569" style="display: inline-block;"></div></div><div class="speech-content"><p style="white-space: pre-wrap; white-space-collapse: preserve;">This is text under the Introduction header. All text must be under a header to be included.</p></div></article><article class="speech"><div class="speech-header"><input class="speech-checkbox" data-speech-id="speech-2" type="checkbox"><h2 class="speech-title" id="speech-2">Main Section</h2><div class="bookmark-container"><img class="bookmark-icon" data-bookmarked="false" data-speech-id="speech-2" src="file:///I:/Programs/Program Backend/Video Transcript Manager - backend/Img/bookmark.png?t=1743336569" style="display: inline-block;"></div></div><div class="speech-content"><p style="white-space: pre-wrap; white-space-collapse: preserve;">This text will be part of the Main Section in the transcript.</p></div></article><div class="main-header-section" id="speech-3"><h2 class="main-header">PART 2</h2></div><article class="speech"><div class="speech-header"><input class="speech-checkbox" data-speech-id="speech-4" type="checkbox"><h2 class="speech-title" id="speech-4">Conclusion</h2><div class="bookmark-container"><img class="bookmark-icon" data-bookmarked="false" data-speech-id="speech-4" src="file:///I:/Programs/Program Backend/Video Transcript Manager - backend/Img/bookmark.png?t=1743336569" style="display: inline-block;"></div></div><div class="speech-content"><p style="white-space: pre-wrap; white-space-collapse: preserve;">This is the conclusion text. Notice how each header has text under it.</p></div></article></main><div class="toc-modal" id="toc-modal"><div class="toc-modal-content"><div class="toc-header"><h3>Table of Contents</h3><span class="toc-close">×</span></div><div class="toc-grid"><div class="toc-column"><a class="toc-item toc-item-main" data-speech-id="speech-0" data-type="main" href="#speech-0" title="PART 1"><span class="toc-main-label">■ </span>PART 1</a><a class="toc-item toc-item-normal" data-speech-id="speech-1" data-type="normal" href="#speech-1" title="Introduction">Introduction</a><a class="toc-item toc-item-normal" data-speech-id="speech-2" data-type="normal" href="#speech-2" title="Main Section">Main Section</a></div><div class="toc-column"><a class="toc-item toc-item-main" data-speech-id="speech-3" data-type="main" href="#speech-3" title="PART 2"><span class="toc-main-label">■ </span>PART 2</a><a class="toc-item toc-item-normal" data-speech-id="speech-4" data-type="normal" href="#speech-4" title="Conclusion">Conclusion</a></div></div></div></div><script type="text/javascript">
+            // Variables to store bookmark image paths (will be set by fix_bookmark_images)
+            window.bookmarkImagePath = '';
+            window.bookmarkFilledImagePath = '';
+
+            // Initialize QWebChannel
+            new QWebChannel(qt.webChannelTransport, function(channel) {
+                window.jsHandler = channel.objects.jsHandler;
+            });
+
+            // Handle bookmark clicks
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('bookmark-icon')) {
+                    const bookmarkIcon = e.target;
+                    const isBookmarked = bookmarkIcon.getAttribute('data-bookmarked') === 'true';
+                    const speechId = bookmarkIcon.dataset.speechId;
+
+                    if (isBookmarked) {
+                        // Use the window variable instead of hardcoded path
+                        bookmarkIcon.src = window.bookmarkImagePath || 'Img/bookmark.png';
+                        bookmarkIcon.setAttribute('data-bookmarked', 'false');
+                    } else {
+                        // Use the window variable instead of hardcoded path
+                        bookmarkIcon.src = window.bookmarkFilledImagePath || 'Img/bookmark-filled.png';
+                        bookmarkIcon.setAttribute('data-bookmarked', 'true');
+                    }
+
+                    if (window.jsHandler && window.jsHandler.bookmarkToggledFromJs) {
+                        window.jsHandler.bookmarkToggledFromJs(!isBookmarked);
+                    }
+                }
+            });
+
+            const initializeBookmarks = () => {
+                const bookmarkIcons = document.querySelectorAll('.bookmark-icon');
+                bookmarkIcons.forEach(icon => {
+                    const isBookmarked = icon.getAttribute('data-bookmarked') === 'true';
+                    icon.src = isBookmarked ? 
+                        (window.bookmarkFilledImagePath || 'Img/bookmark-filled.png') : 
+                        (window.bookmarkImagePath || 'Img/bookmark.png');
+                });
+            };
+
+            function updateProgress() {
+                const checkboxes = document.querySelectorAll('.speech-checkbox');
+                const normalCheckboxes = Array.from(checkboxes);
+                const total = normalCheckboxes.length;
+                const completed = normalCheckboxes.filter(checkbox => checkbox.checked).length;
+                const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+                const percentageEl = document.querySelector('.progress-percentage');
+                const progressFill = document.querySelector('.progress-fill');
+                const progressBar = document.querySelector('.progress-bar');
+
+                if (percentageEl) percentageEl.textContent = `${percentage}%`;
+
+                if (progressFill) {
+                    progressFill.style.width = `${percentage}%`;
+                    progressFill.style.backgroundColor = percentage >= 100 ? 'var(--success-color)' : 'var(--accent-color)';
+                }
+
+                if (progressBar) {
+                    progressBar.classList.toggle('completed', percentage >= 100);
+                }
+
+                return percentage;
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                initializeBookmarks();
+
+                const speeches = document.querySelectorAll('article.speech');
+                speeches.forEach(article => {
+                    const checkbox = article.querySelector('.speech-checkbox');
+                    if (checkbox) {
+                        checkbox.checked = article.getAttribute('data-checked') === 'true';
+                        const speechId = checkbox.dataset.speechId;
+                        const navLink = document.querySelector(`a[data-speech-id="${speechId}"]`);
+                        if (navLink) {
+                            navLink.classList.toggle('completed', checkbox.checked);
+                        }
+                    }
+                });
+
+                const headers = document.querySelectorAll('.speech-title, .main-header');
+                const topNavContainer = document.querySelector('.top-nav-container');
+                if (headers.length < 5 && topNavContainer) {
+                    topNavContainer.style.display = 'none';
+                }
+
+                updateProgress();
+            });
+
+            document.addEventListener('change', (e) => {
+                if (e.target.classList.contains('speech-checkbox')) {
+                    const checkbox = e.target;
+                    const article = checkbox.closest('article.speech');
+                    const isChecked = checkbox.checked;
+                    const speechId = checkbox.dataset.speechId;
+
+                    if (article) {
+                        article.setAttribute('data-checked', isChecked);
+                    }
+
+                    const navLink = document.querySelector(`a[data-speech-id="${speechId}"]`);
+                    if (navLink) {
+                        navLink.classList.toggle('completed', isChecked);
+                    }
+
+                    updateProgress();
+
+                    if (window.jsHandler && window.jsHandler.checkboxToggledFromJs) {
+                        window.jsHandler.checkboxToggledFromJs(isChecked);
+                    }
+                }
+            });
+
+            document.querySelectorAll('.nav-link').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (this.getAttribute('href') === '#top') {
+                        window.scrollTo({
+                            top: 0,
+                            behavior: 'smooth'
+                        });
+
+                        const navContainer = document.querySelector('.nav-container');
+                        if (navContainer) {
+                            navContainer.scrollTo({
+                                top: 0,
+                                behavior: 'smooth'
+                            });
+                        }
+                    } else {
+                        const target = document.querySelector(this.getAttribute('href'));
+                        const offset = 100;
+                        const bodyRect = document.body.getBoundingClientRect().top;
+                        const elementRect = target.getBoundingClientRect().top;
+                        const elementPosition = elementRect - bodyRect;
+                        const offsetPosition = elementPosition - offset;
+
+                        window.scrollTo({
+                            top: offsetPosition,
+                            behavior: 'smooth'
+                        });
+                    }
+
+                    document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+                    this.classList.add('active');
+
+                    if (window.innerWidth <= 768) {
+                        const sidebar = document.querySelector('.sidebar');
+                        if (sidebar) {
+                            sidebar.classList.remove('active');
+                        }
+                    }
+                });
+            });
+
+            window.addEventListener('scroll', () => {
+                const speeches = document.querySelectorAll('.speech, .main-header-section');
+                const navLinks = document.querySelectorAll('.nav-link');
+                const navContainer = document.querySelector('.nav-container');
+                const offsetThreshold = 120;
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+
+                // When transcript scroll reaches top, bring nav scroll to top
+                if (scrollTop <= 10) {
+                    if (navContainer) {
+                        navContainer.scrollTop = 0;
+                    }
+                }
+
+                // When transcript scroll reaches bottom, bring nav scroll to bottom
+                if (scrollTop >= maxScroll - 10) {
+                    if (navContainer) {
+                        navContainer.scrollTop = navContainer.scrollHeight - navContainer.clientHeight;
+                    }
+                }
+
+                if (scrollTop < offsetThreshold) {
+                    navLinks.forEach(link => link.classList.remove('active'));
+                    const topLink = document.querySelector('.nav-link-top');
+                    if (topLink) {
+                        topLink.classList.add('active');
+                    }
+                } else {
+                    speeches.forEach((speech) => {
+                        const rect = speech.getBoundingClientRect();
+                        if (rect.top <= offsetThreshold && rect.bottom >= offsetThreshold) {
+                            navLinks.forEach(link => link.classList.remove('active'));
+            
+                            // Get the actual ID from the speech element instead of relying on index
+                            const speechId = speech.id || 
+                                            speech.querySelector('[id^="speech-"]')?.id;
+            
+                            if (speechId) {
+                                const navLink = document.querySelector(`a[href="#${speechId}"]`);
+                                if (navLink) {
+                                    navLink.classList.add('active');
+                                    navLink.scrollIntoView({
+                                        block: 'nearest',
+                                        behavior: 'smooth'
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Table of Contents Modal functionality
+            const tocButton = document.getElementById('toc-button');
+            const tocModal = document.getElementById('toc-modal');
+            const tocClose = document.querySelector('.toc-close');
+            const tocGrid = document.querySelector('.toc-grid');
+    
+            if (tocButton && tocModal) {
+                tocButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    tocModal.style.display = 'flex';
+                });
+        
+                // Close modal when clicking the X
+                if (tocClose) {
+                    tocClose.addEventListener('click', function() {
+                        tocModal.style.display = 'none';
+                    });
+                }
+        
+                // Close modal when clicking outside the content
+                tocModal.addEventListener('click', function(e) {
+                    if (e.target === tocModal) {
+                        tocModal.style.display = 'none';
+                    }
+                });
+        
+                // Handle item clicks in TOC
+                document.querySelectorAll('.toc-item').forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                
+                        // Close the modal
+                        tocModal.style.display = 'none';
+                
+                        // Scroll to the target section
+                        const targetId = this.getAttribute('href');
+                        const targetElement = document.querySelector(targetId);
+                
+                        if (targetElement) {
+                            const offset = 100;
+                            const bodyRect = document.body.getBoundingClientRect().top;
+                            const elementRect = targetElement.getBoundingClientRect().top;
+                            const elementPosition = elementRect - bodyRect;
+                            const offsetPosition = elementPosition - offset;
+                    
+                            window.scrollTo({
+                                top: offsetPosition,
+                                behavior: 'smooth'
+                            });
+                    
+                            // Update active state in main nav
+                            document.querySelectorAll('.nav-link').forEach(link => {
+                                link.classList.remove('active');
+                            });
+                    
+                            const navLink = document.querySelector(`a[href="${targetId}"]`);
+                            if (navLink) {
+                                navLink.classList.add('active');
+                            }
+                        }
+                    });
+                });
+            }
+
+            // TOC Search functionality with selector validation
+            document.addEventListener('DOMContentLoaded', function() {
+                const tocSearch = document.getElementById('toc-search');
+                const tocSearchResults = document.getElementById('toc-search-results');
+                const tocClose = document.querySelector('.toc-close');
+                const tocModal = document.getElementById('toc-modal');
+    
+                if (!tocSearch || !tocSearchResults) return;
+    
+                // Force redraw of search field
+                tocSearch.style.display = 'none';
+                setTimeout(() => { tocSearch.style.display = 'block'; }, 0);
+    
+                // Multiple event listeners for reliability
+                ['input', 'keyup'].forEach(function(event) {
+                    tocSearch.addEventListener(event, function() {
+                        handleSearch();
+                    });
+                });
+    
+                function handleSearch() {
+                    const tocGrid = document.querySelector('.toc-grid');
+                    const searchTerm = tocSearch.value.toLowerCase().trim();
+                    const tocItems = document.querySelectorAll('.toc-item');
+        
+                    // Clear previous results
+                    tocSearchResults.innerHTML = '';
+        
+                    if (searchTerm.length < 2) {
+                        tocSearchResults.style.display = 'none';
+                        if (tocGrid) tocGrid.style.display = 'grid';
+                        return;
+                    }
+        
+                    // Show search results, hide regular grid
+                    tocSearchResults.style.display = 'block';
+                    if (tocGrid) tocGrid.style.display = 'none';
+        
+                    // Find matching items
+                    let matchCount = 0;
+                    tocItems.forEach(item => {
+                        const itemText = item.textContent.toLowerCase();
+                        // Safely access title attribute
+                        const itemTitle = item.hasAttribute('title') ? 
+                            item.getAttribute('title').toLowerCase() : '';
+            
+                        if (itemText.includes(searchTerm) || itemTitle.includes(searchTerm)) {
+                            matchCount++;
+                            const resultItem = item.cloneNode(true);
+                            tocSearchResults.appendChild(resultItem);
+                        }
+                    });
+        
+                    // Show message if no results
+                    if (matchCount === 0) {
+                        const noResults = document.createElement('div');
+                        noResults.className = 'toc-no-results';
+                        noResults.textContent = 'No matches found';
+                        tocSearchResults.appendChild(noResults);
+                    }
+                }
+    
+                // Clear search when closing modal
+                if (tocClose) {
+                    tocClose.addEventListener('click', function() {
+                        const tocGrid = document.querySelector('.toc-grid');
+                        tocSearch.value = '';
+                        tocSearchResults.innerHTML = '';
+                        tocSearchResults.style.display = 'none';
+                        if (tocGrid) tocGrid.style.display = 'grid';
+                    });
+                }
+    
+                // Handle clicks on search results
+                tocSearchResults.addEventListener('click', function(e) {
+                    // Find the closest .toc-item if the click was on a child element
+                    const targetItem = e.target.closest('.toc-item');
+        
+                    if (targetItem) {
+                        e.preventDefault();
+            
+                        // Clear search
+                        const tocGrid = document.querySelector('.toc-grid');
+                        tocSearch.value = '';
+                        tocSearchResults.innerHTML = '';
+                        tocSearchResults.style.display = 'none';
+                        if (tocGrid) tocGrid.style.display = 'grid';
+            
+                        // Close the modal
+                        if (tocModal) tocModal.style.display = 'none';
+            
+                        // Get the target ID and validate it
+                        const targetId = targetItem.getAttribute('href');
+            
+                        // Make sure targetId is a valid selector
+                        if (!targetId || targetId === '#' || targetId === '') {
+                            console.error('Invalid target ID:', targetId);
+                            return;
+                        }
+            
+                        // Now it's safe to use querySelector
+                        const targetElement = document.querySelector(targetId);
+            
+                        if (targetElement) {
+                            const offset = 100;
+                            const bodyRect = document.body.getBoundingClientRect().top;
+                            const elementRect = targetElement.getBoundingClientRect().top;
+                            const elementPosition = elementRect - bodyRect;
+                            const offsetPosition = elementPosition - offset;
+                
+                            window.scrollTo({
+                                top: offsetPosition,
+                                behavior: 'smooth'
+                            });
+                
+                            // Update active state in main nav
+                            document.querySelectorAll('.nav-link').forEach(link => {
+                                link.classList.remove('active');
+                            });
+                
+                            // Validate the selector before using it
+                            if (targetId && targetId !== '#' && targetId !== '') {
+                                const navLink = document.querySelector(`a[href="${targetId}"]`);
+                                if (navLink) {
+                                    navLink.classList.add('active');
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        </script></body></html>

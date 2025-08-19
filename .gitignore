@@ -1,0 +1,15 @@
+
+# Python
+__pycache__/
+*.pyc
+
+# Build artifacts
+*.exe
+*.spec
+*.iss
+
+# Data files
+Data/api_key.txt
+Data/stored_api_keys.json
+Data/recent_sessions.json
+Data/settings.ini
