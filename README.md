@@ -94,6 +94,7 @@ This project is open-source and uses libraries under various open-source license
 
 
 Changelog history:
+
 v.3.4.1
 - Fixed dual clear and rebuild via renumber items on handle_removal_and_reassign in the script editor.
 - dropEvent no longer clears and rebuilds in script editor.
