@@ -55,6 +55,10 @@ Download the latest release from the [Releases page](https://github.com/your-use
 **macOS:**
 This application is currently built for Windows and a macOS version is not available.
 
+<div style="text-align: center;">
+  <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
+</div>
+
 
 ## Dependencies
 
