@@ -121,6 +121,7 @@ v.3.4.1
 - Tags in tooltip are hoverable and selectable for direct filtering. 
 - Scrolling in the tooltip no longer triggers scrolling in the transcript.
 - Sort Annotations Chronologically can now sort all tabs not just current tab.
+- Significant ux improvements to the Process Captions tab. 
 - And several other BUGS fixed.
 
 v3.4.0
