@@ -31,8 +31,7 @@ Scriptoria streamlines this by allowing you to work with the transcript as the c
 While designed for video editors, Scriptoria's feature set makes it a capable tool for anyone working with long-form text:
 
 *   **E-Reader & Study Tool:** Import EPUBs directly into the program. 
-*   **Content Curation:** Organize research and articles by theme for easy reference.
-*   **Qualitative Analysis:** Use the tagging and filtering system to analyze text-based data for patterns.
+*   **Academics:** Organize research and articles with theme-based highlighting and notes/commentary for easy reference.
 
 ## Key Features
 
