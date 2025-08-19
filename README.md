@@ -54,7 +54,7 @@ While designed for video editors, Scriptoria's feature set makes it a capable to
 ## Installation & Setup
 
 **Windows:**
-Download the latest release from the [Releases page](https://github.com/your-username/Scriptoria/releases) and run the installer.
+Download the latest release from the [Releases page](https://github.com/delisimedia/Scriptoria/releases) and run the installer.
 
 **macOS:**
 This application is currently built for Windows and a macOS version is not available.
