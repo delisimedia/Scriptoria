@@ -41,13 +41,7 @@ While designed for video editors, Scriptoria's feature set makes it a capable to
 *   **Preset System:** Save and load custom sets of Themes and Tags to maintain consistency across projects.
 *   **Interactive HTML Export:** Export your final, stylized transcript as a self-contained interactive HTML file.
 *   **Advanced Filtering:** Filter your entire transcript to show only relevant highlights. 
-*   **Integrated Gemini Assistant:** Highlight any passage in the transcript viewer and ask questions directly via an embedded Gemini API interface. Or use it to completely assemble scripts for you. 
-
-## Who Is This For?
-
-*   Video editors and documentary filmmakers.
-*   General readers who are reading complex text
-*   Students and academics
+*   **Integrated Gemini Assistant:** Highlight any passage in the transcript viewer and ask questions directly via an embedded Gemini API interface. Or use it to completely assemble scripts for you.
 
 ## Installation & Setup
 
