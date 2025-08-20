@@ -43,10 +43,10 @@ Scriptoria's feature set makes it a capable tool for anyone working with long-fo
 
 *   **Re-format captions to readable paragraph form** Utilize the embedded Gemini API or use the provided prompt to transform raw, timecoded caption files into clean, readable text formatted with Scriptoria's syntax. The tool includes default prompts optimized for interviews, and allows you to **create, save, and manage your own custom prompts** 
 *   **Thematic Highlighting:** Create up to 12 distinct **Themes**, each with its own color and hotkey. Annotations can also be assigned **Secondary Themes** for more detailed categorization.
-*   **Robust Tagging System:** Add an unlimited number of searchable tags (e.g., `#Strong-Closing-Line`, `#key-moment`) to any highlight for precise organization.
+*   **Robust Tagging System:** Add searchable tags (e.g., `#Strong-Closing-Line`, `#key-moment`) to any highlight for precise organization.
 *   **Preset System:** Save and load custom sets of Themes and Tags to maintain consistency across projects.
 *   **Interactive HTML Export:** Export your final, stylized transcript as a self-contained interactive HTML file.
-*   **Advanced Filtering:** Filter your entire transcript to show only relevant highlights. 
+*   **Filtering:** Filter your entire transcript to show only relevant highlights according to theme, tags, favorites etc...
 *   **Integrated Gemini Assistant:** Highlight any passage in the transcript viewer and ask questions directly via an embedded Gemini API interface. Or use it to completely assemble scripts for you.
 
 ## Installation & Setup
