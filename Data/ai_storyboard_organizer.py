@@ -1773,6 +1773,14 @@ Do not include any explanations, comments, or other text."""
             else:
                 print(f"❌❌❌ [AI STORYBOARD] Storyboard dialog not available for refresh ❌❌❌")
             
+            # Trigger changes pending indicator
+            print(f"💾💾💾 [AI STORYBOARD] Triggering changes pending indicator... 💾💾💾")
+            if hasattr(self.main_window, 'mark_changes_pending'):
+                self.main_window.mark_changes_pending()
+                print(f"✅ [AI STORYBOARD] Changes pending indicator triggered")
+            else:
+                print(f"⚠️ [AI STORYBOARD] mark_changes_pending method not found")
+            
             # Show success message
             print(f"🎉🎉🎉 [AI STORYBOARD] Showing success message... 🎉🎉🎉")
             QMessageBox.information(self, "Success", 
