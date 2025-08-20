@@ -34,9 +34,9 @@ Scriptoria streamlines this by allowing you to work with the transcript as the c
 
 While designed for video editors, Scriptoria's feature set makes it a capable tool for anyone working with long-form text:
 
-*   **E-Reader & Study Tool:** Import EPUBs directly into the program or copy and paste text from the internet.
-     Organize your reading/studying with theme-based highlighting, tagging, and notes/commentary.
-     Use the integrated Gemini assistant to ask questions directly to the text, and save preset prompts for easy access. 
+*    Import EPUBs directly into the program or copy and paste text from the internet.
+*    Organize your reading/studying with theme-based highlighting, tagging, and notes/commentary.
+*    Use the integrated Gemini assistant to ask questions directly to the text, and save preset prompts for easy access. 
 
 
 ## Key Features
