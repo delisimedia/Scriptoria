@@ -32,7 +32,7 @@ Scriptoria streamlines this by allowing you to work with the transcript as the c
 
 ## As an e-reader...
 
-While designed for video editors, Scriptoria's feature set makes it a capable tool for anyone working with long-form text:
+Scriptoria's feature set makes it a capable tool for anyone working with long-form text:
 
 *    Import EPUBs directly into the program or copy and paste text from the internet.
 *    Organize your reading/studying with theme-based highlighting, tagging, and notes/commentary.
