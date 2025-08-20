@@ -472,13 +472,9 @@ class AIStoryboardOrganizer(QDialog):
         layout.addLayout(button_layout)
     
     def load_api_key(self):
-        """Load API key from the Data folder"""
+        """Load API key using the same method as other AI functions"""
         try:
-            # Try main Data folder first
-            api_key_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Data", "api_key.txt")
-            if not os.path.exists(api_key_path):
-                # Try lowercase data folder
-                api_key_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "api_key.txt")
+            api_key_path = self._get_api_key_path()
             
             if os.path.exists(api_key_path):
                 with open(api_key_path, 'r', encoding='utf-8') as f:
@@ -498,6 +494,29 @@ class AIStoryboardOrganizer(QDialog):
         except Exception as e:
             self.status_label.setText(f"Error loading API key: {str(e)}")
             self.process_btn.setEnabled(False)
+    
+    def _get_api_key_path(self):
+        """Gets the full path for the API key file in the 'data' subfolder."""
+        import sys
+        try:
+            # Get base path correctly for frozen (PyInstaller) or script execution
+            if getattr(sys, 'frozen', False):
+                # If the application is run as a bundle/frozen executable
+                base_path = os.path.dirname(sys.executable)
+            else:
+                # If the application is run as a script
+                base_path = os.path.dirname(os.path.abspath(__file__))
+                # Go up one directory since this file is in Data/ subfolder
+                base_path = os.path.dirname(base_path)
+
+            data_folder = os.path.join(base_path, "data")
+            # Create data folder if it doesn't exist (important for first run)
+            os.makedirs(data_folder, exist_ok=True)
+            return os.path.join(data_folder, "api_key.txt")
+        except Exception as e:
+            print(f"Error determining API key path: {e}")
+            # Fallback to current working directory if path fails (less ideal)
+            return os.path.join(os.getcwd(), "api_key.txt")
     
     def get_full_transcript(self):
         """Extract full transcript text from session data"""
