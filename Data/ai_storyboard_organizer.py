@@ -38,6 +38,24 @@ class AIWorkerThread(QThread):
             print(f"[AI WORKER] Streaming enabled: {self.stream}")
             print(f"[AI WORKER] Prompt length: {len(self.prompt)} characters")
             
+            # Debug: Show first 500 and last 500 characters of prompt to identify potential issues
+            if len(self.prompt) > 1000:
+                print(f"[AI WORKER] Prompt preview (first 500 chars): {self.prompt[:500]}...")
+                print(f"[AI WORKER] Prompt preview (last 500 chars): ...{self.prompt[-500:]}")
+            else:
+                print(f"[AI WORKER] Full prompt: {self.prompt}")
+            
+            # Check for potential problematic content in prompt
+            problematic_indicators = [
+                "personal information", "private", "confidential", "password", "secret",
+                "hack", "illegal", "violence", "harm", "dangerous", "explicit"
+            ]
+            found_indicators = [indicator for indicator in problematic_indicators if indicator.lower() in self.prompt.lower()]
+            if found_indicators:
+                print(f"[AI WORKER] WARNING: Potentially problematic content indicators found: {found_indicators}")
+            else:
+                print(f"[AI WORKER] No obvious problematic content indicators detected")
+            
             if self.stream:
                 # Streaming response
                 print(f"[AI WORKER] Sending streaming request...")
@@ -47,27 +65,97 @@ class AIWorkerThread(QThread):
                 full_response = ""
                 chunk_count = 0
                 try:
-                    for chunk in response:
-                        print(f"[AI WORKER] Received chunk {chunk_count + 1}: {len(chunk.text) if chunk.text else 0} chars")
-                        if chunk.text:
-                            full_response += chunk.text
-                            self.response_chunk.emit(chunk.text)
-                            chunk_count += 1
-                        elif hasattr(chunk, 'candidates') and chunk.candidates:
-                            for candidate in chunk.candidates:
-                                if hasattr(candidate, 'finish_reason'):
-                                    print(f"[AI WORKER] Chunk finish_reason: {candidate.finish_reason}")
-                                if hasattr(candidate, 'safety_ratings'):
-                                    print(f"[AI WORKER] Safety ratings: {candidate.safety_ratings}")
+                    blocked_reasons = []
+                    safety_issues = []
+                    
+                    try:
+                        for chunk in response:
+                            # Check for text content first
+                            try:
+                                if hasattr(chunk, 'text') and chunk.text:
+                                    print(f"[AI WORKER] Received chunk {chunk_count + 1}: {len(chunk.text)} chars")
+                                    full_response += chunk.text
+                                    self.response_chunk.emit(chunk.text)
+                                    chunk_count += 1
+                                    continue
+                            except Exception as text_error:
+                                print(f"[AI WORKER] Error accessing chunk.text: {text_error}")
+                            
+                            # If no text, check candidates for finish_reason and safety info
+                            if hasattr(chunk, 'candidates') and chunk.candidates:
+                                for candidate in chunk.candidates:
+                                    if hasattr(candidate, 'finish_reason'):
+                                        finish_reason = candidate.finish_reason
+                                        print(f"[AI WORKER] Chunk finish_reason: {finish_reason}")
+                                        
+                                        # Map finish reasons to user-friendly messages
+                                        if finish_reason == 1:  # STOP
+                                            blocked_reasons.append("Content generation was stopped (finish_reason: STOP)")
+                                        elif finish_reason == 2:  # MAX_TOKENS
+                                            blocked_reasons.append("Maximum token limit reached")
+                                        elif finish_reason == 3:  # SAFETY
+                                            blocked_reasons.append("Content blocked by safety filters")
+                                        elif finish_reason == 4:  # RECITATION
+                                            blocked_reasons.append("Content blocked due to recitation concerns")
+                                        elif finish_reason == 5:  # OTHER
+                                            blocked_reasons.append("Content blocked for other reasons")
+                                    
+                                    if hasattr(candidate, 'safety_ratings'):
+                                        safety_ratings = candidate.safety_ratings
+                                        print(f"[AI WORKER] Safety ratings: {safety_ratings}")
+                                        for rating in safety_ratings:
+                                            if hasattr(rating, 'category') and hasattr(rating, 'probability'):
+                                                if rating.probability in [3, 4]:  # MEDIUM or HIGH probability
+                                                    safety_issues.append(f"{rating.category.name}: {rating.probability}")
+                    
+                    except StopIteration:
+                        print(f"[AI WORKER] Stream ended (StopIteration) - this is normal behavior")
+                        # StopIteration is normal when the stream ends, not an error
+                        pass
+                    except Exception as iteration_error:
+                        print(f"[AI WORKER] Error during stream iteration: {iteration_error}")
+                        # Only treat non-StopIteration exceptions as errors
+                        error_msg = f"Streaming error: {iteration_error}"
+                        if blocked_reasons:
+                            error_msg += f"\n\nBlocked reasons: {'; '.join(blocked_reasons)}"
+                        if safety_issues:
+                            error_msg += f"\n\nSafety concerns: {'; '.join(safety_issues)}"
+                        
+                        self.error_occurred.emit(error_msg)
+                        return
+                
                 except Exception as stream_e:
-                    print(f"[AI WORKER] Error during streaming: {stream_e}")
-                    self.error_occurred.emit(f"Streaming error: {stream_e}")
+                    print(f"[AI WORKER] Outer streaming error: {stream_e}")
+                    
+                    # Create a more helpful error message
+                    error_msg = f"Streaming setup error: {stream_e}"
+                    if blocked_reasons:
+                        error_msg += f"\n\nBlocked reasons: {'; '.join(blocked_reasons)}"
+                    if safety_issues:
+                        error_msg += f"\n\nSafety concerns: {'; '.join(safety_issues)}"
+                    
+                    self.error_occurred.emit(error_msg)
                     return
                 
                 print(f"[AI WORKER] Streaming complete. Total chunks: {chunk_count}, Total length: {len(full_response)}")
+                print(f"[AI WORKER] Blocked reasons found: {blocked_reasons}")
+                print(f"[AI WORKER] Safety issues found: {safety_issues}")
                 
                 if chunk_count == 0:
-                    self.error_occurred.emit("No response received from AI - the response was empty or blocked by safety filters")
+                    # No content was generated - provide detailed feedback
+                    error_msg = "No response received from AI - the response was empty or blocked"
+                    if blocked_reasons:
+                        error_msg += f"\n\nBlocked reasons: {'; '.join(blocked_reasons)}"
+                    if safety_issues:
+                        error_msg += f"\n\nSafety concerns: {'; '.join(safety_issues)}"
+                    
+                    if blocked_reasons or safety_issues:
+                        error_msg += "\n\nSuggestions:\n• Try rephrasing your request\n• Check if your content violates AI safety guidelines\n• Consider using a different approach or topic\n• Try using gemini-2.5-flash instead of gemini-2.5-pro\n• Reduce the thinking budget or simplify your prompt"
+                    else:
+                        error_msg += "\n\nSuggestions:\n• Check your API key and credits\n• Verify network connectivity\n• Try with a simpler request\n• Try using gemini-2.5-flash instead of gemini-2.5-pro\n• Reduce the transcript context or thinking budget"
+                    
+                    print(f"[AI WORKER] Emitting detailed error: {error_msg}")
+                    self.error_occurred.emit(error_msg)
                 else:
                     self.response_received.emit(full_response)
             else:
@@ -76,27 +164,69 @@ class AIWorkerThread(QThread):
                 response = self.model.generate_content(self.prompt)
                 print(f"[AI WORKER] Single response received: {type(response)}")
                 
-                if hasattr(response, 'text') and response.text:
-                    print(f"[AI WORKER] Response text length: {len(response.text)}")
-                    self.response_received.emit(response.text)
-                else:
-                    # Check for detailed response info
-                    response_info = ""
-                    if hasattr(response, 'candidates'):
-                        for i, candidate in enumerate(response.candidates):
-                            if hasattr(candidate, 'finish_reason'):
-                                response_info += f"Candidate {i} finish_reason: {candidate.finish_reason}. "
-                            if hasattr(candidate, 'safety_ratings'):
-                                response_info += f"Safety ratings: {candidate.safety_ratings}. "
-                    
-                    error_msg = f"AI response was empty or blocked. {response_info}"
-                    print(f"[AI WORKER] {error_msg}")
-                    self.error_occurred.emit(error_msg)
+                try:
+                    if hasattr(response, 'text') and response.text:
+                        print(f"[AI WORKER] Response text length: {len(response.text)}")
+                        self.response_received.emit(response.text)
+                    else:
+                        # Check for detailed response info
+                        blocked_reasons = []
+                        safety_issues = []
+                        
+                        if hasattr(response, 'candidates'):
+                            for i, candidate in enumerate(response.candidates):
+                                if hasattr(candidate, 'finish_reason'):
+                                    finish_reason = candidate.finish_reason
+                                    print(f"[AI WORKER] Candidate {i} finish_reason: {finish_reason}")
+                                    
+                                    # Map finish reasons to user-friendly messages
+                                    if finish_reason == 1:  # STOP
+                                        blocked_reasons.append("Content generation was stopped (finish_reason: STOP)")
+                                    elif finish_reason == 2:  # MAX_TOKENS
+                                        blocked_reasons.append("Maximum token limit reached")
+                                    elif finish_reason == 3:  # SAFETY
+                                        blocked_reasons.append("Content blocked by safety filters")
+                                    elif finish_reason == 4:  # RECITATION
+                                        blocked_reasons.append("Content blocked due to recitation concerns")
+                                    elif finish_reason == 5:  # OTHER
+                                        blocked_reasons.append("Content blocked for other reasons")
+                                
+                                if hasattr(candidate, 'safety_ratings'):
+                                    safety_ratings = candidate.safety_ratings
+                                    print(f"[AI WORKER] Safety ratings: {safety_ratings}")
+                                    for rating in safety_ratings:
+                                        if hasattr(rating, 'category') and hasattr(rating, 'probability'):
+                                            if rating.probability in [3, 4]:  # MEDIUM or HIGH probability
+                                                safety_issues.append(f"{rating.category.name}: {rating.probability}")
+                        
+                        # Create user-friendly error message
+                        error_msg = "AI response was empty or blocked"
+                        if blocked_reasons:
+                            error_msg += f"\n\nBlocked reasons: {'; '.join(blocked_reasons)}"
+                        if safety_issues:
+                            error_msg += f"\n\nSafety concerns: {'; '.join(safety_issues)}"
+                        
+                        if blocked_reasons or safety_issues:
+                            error_msg += "\n\nSuggestions:\n• Try rephrasing your request\n• Check if your content violates AI safety guidelines\n• Consider using a different approach or topic"
+                        else:
+                            error_msg += "\n\nSuggestions:\n• Check your API key and credits\n• Verify network connectivity\n• Try with a simpler request"
+                        
+                        print(f"[AI WORKER] {error_msg}")
+                        self.error_occurred.emit(error_msg)
+                        
+                except Exception as response_error:
+                    print(f"[AI WORKER] Error processing response: {response_error}")
+                    self.error_occurred.emit(f"Error processing AI response: {response_error}")
                     
         except Exception as e:
             error_msg = str(e)
             print(f"[AI WORKER] Exception occurred: {error_msg}")
             print(f"[AI WORKER] Exception type: {type(e)}")
+            
+            # Handle empty error messages
+            if not error_msg or error_msg.strip() == "":
+                error_msg = f"Unknown error occurred (Exception type: {type(e).__name__})"
+                print(f"[AI WORKER] Empty error message detected, using fallback: {error_msg}")
             
             # Add more context to common errors
             if "API_KEY" in error_msg.upper():
@@ -111,10 +241,19 @@ class AIWorkerThread(QThread):
                 error_msg = f"Safety Filter: {error_msg}\nContent may have been blocked by AI safety systems"
             elif "MODEL" in error_msg.upper() and "NOT_FOUND" in error_msg.upper():
                 error_msg = f"Model Not Found: {error_msg}\nThe AI model may not be available or accessible"
+            elif "INVALID OPERATION" in error_msg.upper() or "RESPONSE.TEXT" in error_msg.upper():
+                error_msg = f"Content Blocked: {error_msg}\nThe AI response was blocked by safety filters or other restrictions"
+            elif "STOPITERATION" in error_msg.upper() or type(e).__name__ == "StopIteration":
+                error_msg = f"Stream Ended Unexpectedly: The AI response stream ended without providing content\nThis may indicate content was blocked or the request was too complex"
             
             import traceback
             traceback.print_exc()
             
+            # Ensure we never emit an empty error message
+            if not error_msg or error_msg.strip() == "":
+                error_msg = "An unknown error occurred during AI processing. Check the console for details."
+            
+            print(f"[AI WORKER] Final error message being emitted: '{error_msg}'")
             self.error_occurred.emit(error_msg)
 
 
@@ -192,7 +331,7 @@ class AIStoryboardOrganizer(QDialog):
         context_layout = QHBoxLayout()
         self.full_transcript_checkbox = QCheckBox("Include full transcript (will use more tokens)")
         self.full_transcript_checkbox.setChecked(True)
-        self.full_transcript_checkbox.setToolTip("Sends complete transcript for better context (recommended)")
+        self.full_transcript_checkbox.setToolTip("Sends complete transcript for better context. Uncheck to use only annotation content without any transcript text.")
         context_layout.addWidget(self.full_transcript_checkbox)
         context_layout.addStretch()
         goals_layout.addLayout(context_layout)
@@ -211,10 +350,10 @@ class AIStoryboardOrganizer(QDialog):
         self.model_selector = QComboBox()
         self.model_selector.addItems([
             "gemini-2.5-pro",
-            "gemini-2.5-flash"
+            # "gemini-2.5-flash"  # Commented out due to streaming and safety filter issues
         ])
         self.model_selector.setCurrentText("gemini-2.5-pro")
-        self.model_selector.setToolTip("Pro: More reliable, better quality | Flash: Faster but may have issues")
+        self.model_selector.setToolTip("Pro: More reliable, better quality | Flash temporarily disabled due to content blocking issues")
         ai_layout.addRow("Model:", self.model_selector)
         
         # Thinking budget
@@ -665,13 +804,16 @@ class AIStoryboardOrganizer(QDialog):
         print(f"[AI MODEL] Max output tokens: {max_tokens}")
         
         try:
+            generation_config = {
+                "temperature": 0.3,
+                "top_p": 0.8,
+                "max_output_tokens": max_tokens
+            }
+            print(f"[AI MODEL] Generation config: {generation_config}")
+            
             model = genai.GenerativeModel(
                 model_name=selected_model,
-                generation_config={
-                    "temperature": 0.3,
-                    "top_p": 0.8,
-                    "max_output_tokens": max_tokens
-                }
+                generation_config=generation_config
             )
             print(f"[AI MODEL] Model created successfully: {type(model)}")
             return model
@@ -685,8 +827,52 @@ class AIStoryboardOrganizer(QDialog):
     def process_with_ai(self):
         """Send the request to AI for processing"""
         try:
-            self.status_label.setText("Initializing AI...")
+            self.status_label.setText("Ensuring storyboard is open...")
             self.status_label.setStyleSheet("color: #0066cc;")
+            
+            # Ensure storyboard is open before processing (only toggle if closed)
+            storyboard_is_open = (hasattr(self.main_window, 'storyboard_dialog') and 
+                                self.main_window.storyboard_dialog is not None and
+                                (self.main_window.storyboard_dialog.isVisible() or 
+                                 hasattr(self.main_window.storyboard_dialog, 'is_collapsed') and 
+                                 self.main_window.storyboard_dialog.is_collapsed()))
+            
+            if not storyboard_is_open:
+                print("[AI STORYBOARD] Storyboard not open, opening it silently before processing...")
+                if hasattr(self.main_window, 'toggle_storyboard_panel'):
+                    # Open the storyboard
+                    self.main_window.toggle_storyboard_panel()
+                    
+                    # Immediately hide it so it doesn't flash on screen
+                    if (hasattr(self.main_window, 'storyboard_dialog') and 
+                        self.main_window.storyboard_dialog is not None):
+                        print("[AI STORYBOARD] Hiding storyboard to prevent screen flash...")
+                        # Mark as manually hidden and hide it
+                        self.main_window.storyboard_dialog.is_manually_hidden = True
+                        self.main_window.storyboard_dialog.is_manually_minimized = False
+                        
+                        if hasattr(self.main_window.storyboard_dialog, 'hide_completely'):
+                            self.main_window.storyboard_dialog.hide_completely()
+                        else:
+                            self.main_window.storyboard_dialog.hide()
+                        
+                        # Update the button state to show it's closed
+                        if hasattr(self.main_window, 'storyboard_button'):
+                            self.main_window.storyboard_button.setChecked(False)
+                        
+                        print("[AI STORYBOARD] Storyboard opened and hidden successfully")
+                    else:
+                        print("[AI STORYBOARD] Warning: Could not hide storyboard after opening")
+                else:
+                    error_msg = "Could not open storyboard dialog. Please open it manually first."
+                    self.status_label.setText(f"❌ {error_msg}")
+                    self.status_label.setStyleSheet("color: #EF4444;")
+                    QMessageBox.warning(self, "Storyboard Required", error_msg)
+                    return
+            else:
+                print("[AI STORYBOARD] Storyboard already open")
+            
+            self.status_label.setText("Initializing AI...")
             
             # Create AI model with current settings
             self.ai_model = self.create_ai_model()
@@ -749,8 +935,8 @@ class AIStoryboardOrganizer(QDialog):
                 transcript_context = full_text
                 context_note = "(complete transcript provided for full context)"
             else:
-                transcript_context = full_text[:5000] + "..."
-                context_note = "(truncated for brevity - enable full context for complete transcript)"
+                transcript_context = ""
+                context_note = "(transcript context disabled - only using annotation content)"
             
             # Calculate current word count and duration info for length limit
             length_constraint_info = ""
@@ -791,10 +977,7 @@ Think through multiple possible organizations before settling on the best one.
 You are organizing interview/transcript annotations into a coherent video script.
 {length_constraint_info}
 
-CONTEXT - Full transcript for reference {context_note}:
-{transcript_context}
-
-AVAILABLE ANNOTATIONS TO ORGANIZE:
+{f"CONTEXT - Full transcript for reference {context_note}:\n{transcript_context}\n\n" if transcript_context else ""}AVAILABLE ANNOTATIONS TO ORGANIZE:
 Each annotation includes: ID, quoted text, and metadata (notes, favorite status, tags, themes).
 - note: User's explanatory comment about why this section was highlighted
 - favorite: Whether user marked this as particularly important (true/false)
