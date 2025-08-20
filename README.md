@@ -8,6 +8,8 @@ Scriptoria is primarily designed to create a text-based workflow for video edito
 
 Secondarily it is also a versatile tool for reading and marking up any long-form document like books and articles. It has import support for EPUB files and any text you copy from the internet. Imported text gets automatically or manually formatted via a simple syntax system that Scriptoria recognizes. You can make use of all the various analytical features in the program to use it as an advanced e-reader.
 
+Currently Scriptoria is Windows only, and does not have mobile support.
+
 <div style="text-align: center;">
   <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
 </div>
@@ -28,7 +30,7 @@ Scriptoria streamlines this by allowing you to work with the transcript as the c
 
 4.  **Integrate with Premiere Pro:** Once your narrative is structured, **Alt+Drag** a text block from Scriptoria's Script Editor and drop it onto your Premiere Pro project window. This action simulates a search command, which locates and scrubs to in the timeline that exact text segment within your Premiere sequence, ready for you to splice into your timeline.
 
-## A General-Purpose Tool for Text
+## As an e-reader...
 
 While designed for video editors, Scriptoria's feature set makes it a capable tool for anyone working with long-form text:
 
