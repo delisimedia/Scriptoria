@@ -2,7 +2,7 @@
      <img src="Img/splash-screen.png" alt="Splash Screen of Scriptoria" width="300" height="300">
    </div>
 
-# Scriptoria: A Text-Based Video Editing Companion and General Purpose EReader with Theme-Centered Highlighting and Annotating, Gemini API integration
+# Scriptoria: A Text-Based Video Editing Companion and Versatile EReader with Theme-Centered Highlighting and Annotating, Gemini API integration
 
 Scriptoria is primarily designed to create a text-based workflow for video editors that involves using AI to structure video captions into an interactive HTML text transcript. The transcript can then be marked up and arranged into a script to aide with video outlining and narrative structuring via theme-based highlighting, tagging, and note taking. There is functionality that allows for your script to easily link back with the captions in Adobe Premiere Pro, and a customized Gemini API assistant. There is also a robust filtering system to make it easy to find and locate specific highlights according to theme, tags, favorite, and used (whether it has been used yet in the video) status.
 
