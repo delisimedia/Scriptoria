@@ -55,7 +55,7 @@ Scriptoria's feature set makes it a capable tool for anyone working with long-fo
 **Windows:**
 Download the latest release from the [Releases page](https://github.com/delisimedia/Scriptoria/releases) and run the installer.
 
-**macOS:**
+**macOS and Linux:**
 Not available
 
 ### Changelog for v3.X.X
