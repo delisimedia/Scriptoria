@@ -389,8 +389,13 @@
 
   * Live text formatting (headers, dividers, orphaned text detection) to improve UX when creating transcript.
   * Real-time analysis with auto-fix options
-  * Auto wrap headers, paste formatting dialog
-  * Preserve header options, reflow tools
+  * Auto wrap headers dialog
+  * Paste formatting dialog (automatically format pasted text from clipboard)
+  * EBUP import tool
+  * PDF import tool (experimental)
+  * Context menu tools to apply and remove headers
+  * Better safeguards and UX to help users with the creation process.
+  * Help dialog.
 
 * **Script Editor Enhancements**
 
