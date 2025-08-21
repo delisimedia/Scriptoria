@@ -1,5 +1,9 @@
 v3.5.0
-- New  experimental "AI Generate Script" option in the script editor action menu - will use Gemini to populate the script editor with an arranged order of highlighted annotations. Will add its own dividers and headers if user requests. 
+- New  experimental "Generate Script" option in the script editor action menu - will use Gemini to populate the script editor with an arranged order of highlighted annotations. Will add its own dividers and headers if user requests. 
+- New experimental "Generate Annotations" option, which will automatically identify, highlight and generate annotations for you.
+- New experimental "Generate Notes" option, which will generate notes and commentary on annotations for you.
+- New experimental "Ask Gemini (Annotations)" will be able to ask questions and find specific annotations with AI.
+- Added tilde hotkey to open Ask Gemini (Full Chat).
 - Consolidated Preset Prompt ability into the main Ask Gemini full ai chat dialog and removed the original dialog.
 - Added a separate manage preset prompt dialog to edit and create preset prompts.
 - Improved the markdown-html conversion that happens during streaming and fixed several HTML formatting issues.
@@ -40,35 +44,6 @@ v.3.4.5
 - Significant ux improvements to the Process Captions tab. 
 - And several other BUGS fixed.
 
-
-v.3.4.1
-- Fixed dual clear and rebuild via renumber items on handle_removal_and_reassign in the script editor.
-- dropEvent no longer clears and rebuilds in script editor.
-- toggle_theme_view no longer requires update_theme_view
-- Adding and removing headers are now optimized to not clear and rebuild.
-- Fixed major bug where the improper handling of reassignment context flag was causing right-end reassignments to not emit updates in the script editor.
-- New TagListDialog preset saving and loading functionality
-- Two improvements and 1 opimization in context matching strategy in improve_strikethrough_display.
-- Tab overflow is now handled with a custom horizontal scrollbar for better UX.
-- On startup, update_theme_view is captured by the load progress dialog.
-- Line breaks in annotations are properly carried over into the script editor.
-- Tags are now moved to bottom left corner of widget.
-- Speech-title truncation now expanded from 50 to 125 char.
-- Fixed bugs with item label and widget sizing related to strikethroughs and headers in the script editor.
-- Fixed a bug where tooltip expansion and pinning would no longer trigger.
-- Fixed bug with filtering logic in theme view
-- And other minor ui and ux improvements...
-- Fixed bug with undo functionality 
-- Fixed sticky headers getting stuck when loading between sessions
-- Fixed bug where html exports got broken.
-- Fixed bug where reordering items in gridview in taglistdialog were not updated visually to the user.
-- Fixed bug where partial remove_highlight were not doing target updates on affected annotations
-- Fixed bugs with drag and drop in TagListDialog, added drop indicators.
--Fixed bug where empty content placeholders in theme view were not triggering when removing the last annotation from the list.
-- Tags in tooltip are hoverable and selectable for direct filtering. 
-- Scrolling in the tooltip no longer triggers scrolling in the transcript.
-- Sort Annotations Chronologically can now sort all tabs not just current tab.
-- And several other BUGS fixed.
 
 v3.4.0
 Major Feautre: Can now add Secondary Themes to allow for one annotation to contain multiple themes. Primary Themes and Secondary Themes.
