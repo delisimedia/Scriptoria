@@ -49,6 +49,7 @@ Scriptoria's feature set makes it a capable tool for anyone working with long-fo
 *   **Filtering:** Filter your entire transcript to show only relevant highlights according to theme, tags, favorites etc...
 *   **Integrated Gemini Assistant:** Highlight any passage in the transcript viewer and ask questions directly via an embedded Gemini API interface. Or use it to completely assemble scripts for you.
 
+
 ## Installation & Setup
 
 **Windows:**
@@ -56,6 +57,9 @@ Download the latest release from the [Releases page](https://github.com/delisime
 
 **macOS:**
 This application is currently built for Windows and a macOS version is not available.
+
+## Full Changelog for v3.X.X
+[Changelog]([https://github.com/delisimedia/Scriptoria/main/CHANGELOG.md])
 
 
 ## Dependencies
