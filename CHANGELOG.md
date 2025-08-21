@@ -407,8 +407,6 @@
  * **Gemini API Integration**
 
   * Direct captions processor built into the application, with default prompt and custom prompt creation and saving.
-  * Added gemini api chat interface built into the transcriptwebview.
-  * Quick Summary, Quick Explain, and Full Chat context menu options...
 
  * **Tooltips**
 
