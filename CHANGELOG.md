@@ -1,5 +1,17 @@
 ## Changelog v3.X.X
 
+### **v3.5.1**
+
+*Focus: Transcript creation usability improvements.*
+
+* New toggleable **"View Preview"** feature in the Create Transcript tab
+
+  * Allows you to preview the final transcript before creation
+* Replaced default ibeam cursor in `QTextEdit` within **CreateTranscriptTextEdit**
+
+  * Now uses a custom pixmap `paintEvent` ibeam cursor for better visibility and contrast against background
+
+
 ### **v3.5.0**
 
 *Focus: Major experimental AI features and Gemini integration improvements.*
