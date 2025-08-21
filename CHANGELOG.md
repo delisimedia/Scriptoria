@@ -398,12 +398,14 @@
   * Word counter, script timer, search, PDF export
   * Text-to-speech, modern design, improved rendering
 
-* **Storyboard Enhancements**
+* **Script Editor Enhancements**
 
-  * Advanced strikethrough system, mark all used/unused
-  * Improved drag/drop and action menu
-  * Red overlay preview for highlight removal
-  * Multi-instance strikethrough dialog
+  * New action menu with several new options like PDF creation, Mark All Used/Unused.
+  * Word count, script length timer
+  * Imrpoved UX with better scroll pos and state preservation through refreshes
+  * Better window handling of script editor and responsiveness.
+  * Search bar in script editor
+  * Strikethroughs are now red for better visibility
   * Multiple bug fixes and safeguards to prevent html corruption from strikethroughs.
  
 * **Annotation Splitting, Reassigning - metadata preservation**
