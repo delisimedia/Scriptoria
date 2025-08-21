@@ -1,4 +1,4 @@
-# Full Changelog v3.X.X
+## Changelog v3.X.X
 
 ### **v3.5.0**
 
