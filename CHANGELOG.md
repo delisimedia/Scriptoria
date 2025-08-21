@@ -363,7 +363,7 @@
 
 ---
 
-### **Scriptoria v3.0 Changelog**
+### **3.0.0**
 
 *Focus: Major overhaul with syntax highlighting, enhanced script editor, advanced annotation management, and UI redesign.*
 
