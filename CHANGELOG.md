@@ -403,16 +403,18 @@
   * Advanced strikethrough system, mark all used/unused
   * Improved drag/drop and action menu
   * Red overlay preview for highlight removal
-
-* **Advanced Annotation Management**
-
   * Multi-instance strikethrough dialog
-  * Glasgow Block System (prevents overlap corruption)
-  * Enhanced conflict resolution and state preservation
+  * Multiple bug fixes and safeguards to prevent html corruption from strikethroughs.
+ 
+* **Annotation Splitting, Reassigning - metadata preservation**
+  * Will now comprehensively preserve metadata when splitting or reassigning annotations.
+  * Annotation splitting will preserve the order in the script editor
+  * Works for removal and reassignment.
+  * Warning and conflict resolution dialog when removing an annotation that also appears in the script editor. 
 
 * **Import & Processing Tools**
 
-  * EPUB import, PDF extraction, enhanced captions tools
+  * EPUB import, PDF extraction, AutoWrap headers, Paste formatting dialog
 
 * **User Interface Enhancements**
 
