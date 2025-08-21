@@ -336,6 +336,15 @@ class AIStoryboardOrganizer(QDialog):
         context_layout.addStretch()
         goals_layout.addLayout(context_layout)
         
+        # Custom prompt settings
+        custom_layout = QHBoxLayout()
+        self.custom_prompt_checkbox = QCheckBox("Bypass embedded video script prompt")
+        self.custom_prompt_checkbox.setChecked(False)
+        self.custom_prompt_checkbox.setToolTip("Bypass the embedded video script formatting rules and use only your custom instructions above.")
+        custom_layout.addWidget(self.custom_prompt_checkbox)
+        custom_layout.addStretch()
+        goals_layout.addLayout(custom_layout)
+        
         left_layout.addWidget(goals_group)
         main_splitter.addWidget(left_widget)
         
@@ -446,7 +455,23 @@ class AIStoryboardOrganizer(QDialog):
         
         # Progress bar (initially hidden)
         self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress
+        self.progress_bar.hide()
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #dee2e6;
+                border-radius: 5px;
+                text-align: center;
+                font-weight: bold;
+                color: #495057;
+                background-color: #f8f9fa;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #17a2b8, stop:0.5 #138496, stop:1 #17a2b8);
+                border-radius: 3px;
+            }
+        """)
         layout.addWidget(self.progress_bar)
         
         # Status label
@@ -658,14 +683,131 @@ class AIStoryboardOrganizer(QDialog):
             return os.path.join(os.getcwd(), "api_key.txt")
     
     def get_full_transcript(self):
-        """Extract full transcript text from session data"""
+        """Extract full transcript text from HTML with speech titles preserved"""
         try:
+            # First try the new HTML method
+            if hasattr(self, 'web_view') and self.web_view:
+                # Use QEventLoop to make the async toHtml call synchronous
+                from PyQt6.QtCore import QEventLoop
+                
+                transcript_text = ""
+                loop = QEventLoop()
+                
+                def handle_transcript(html):
+                    nonlocal transcript_text
+                    if html:
+                        from bs4 import BeautifulSoup
+                        
+                        # Parse HTML
+                        soup = BeautifulSoup(html, 'html.parser')
+                        
+                        # Remove CSS and script elements
+                        for element in soup(["style", "script", "head"]):
+                            element.decompose()
+                        
+                        # Extract text with speech titles included
+                        transcript_parts = []
+                        
+                        # Look for speech headers and content sections
+                        speech_headers = soup.find_all('div', class_='speech-header')
+                        
+                        if speech_headers:
+                            # Process each speech header to get title and find corresponding content
+                            for header in speech_headers:
+                                title_elem = header.find(class_='speech-title')
+                                
+                                if title_elem:
+                                    title_text = title_elem.get_text(strip=True)
+                                    
+                                    # Find the corresponding speech content (usually follows the header)
+                                    content_elem = None
+                                    next_sibling = header.find_next_sibling()
+                                    while next_sibling:
+                                        if next_sibling.name == 'div' and 'speech-content' in next_sibling.get('class', []):
+                                            content_elem = next_sibling
+                                            break
+                                        next_sibling = next_sibling.find_next_sibling()
+                                    
+                                    # If no sibling found, look for speech-content within the same parent
+                                    if not content_elem:
+                                        parent = header.find_parent()
+                                        if parent:
+                                            content_elem = parent.find(class_='speech-content')
+                                    
+                                    if content_elem:
+                                        content_text = content_elem.get_text(separator=' ', strip=True)
+                                        if title_text and content_text:
+                                            # Format as "Speaker: content"
+                                            transcript_parts.append(f"{title_text}: {content_text}")
+                                    elif title_text:
+                                        # Just title without content
+                                        transcript_parts.append(title_text)
+                        
+                        # Fallback: Look for speech sections (original logic)
+                        elif soup.find_all('div', class_='speech-section'):
+                            speech_sections = soup.find_all('div', class_='speech-section')
+                            for section in speech_sections:
+                                # Get speech title if available
+                                title_elem = section.find(class_='speech-title')
+                                content_elem = section.find(class_='speech-content')
+                                
+                                if title_elem and content_elem:
+                                    title_text = title_elem.get_text(strip=True)
+                                    content_text = content_elem.get_text(separator=' ', strip=True)
+                                    
+                                    if title_text and content_text:
+                                        # Format as "Speaker: content"
+                                        transcript_parts.append(f"{title_text}: {content_text}")
+                                elif content_elem:
+                                    # Just content without title
+                                    content_text = content_elem.get_text(separator=' ', strip=True)
+                                    if content_text:
+                                        transcript_parts.append(content_text)
+                        else:
+                            # Fallback: look for speech content areas only
+                            speech_contents = soup.find_all(class_="speech-content")
+                            if speech_contents:
+                                for content in speech_contents:
+                                    text = content.get_text(separator=' ', strip=True)
+                                    if text:
+                                        transcript_parts.append(text)
+                            else:
+                                # Final fallback: get all text but clean it up
+                                text = soup.get_text(separator=' ', strip=True)
+                                # Remove extra whitespace
+                                import re
+                                text = re.sub(r'\s+', ' ', text).strip()
+                                transcript_parts.append(text)
+                        
+                        transcript_text = '\n\n'.join(transcript_parts)
+                        
+                        # Debug output
+                        print(f"DEBUG: HTML transcript extraction:")
+                        print(f"  - Found {len(speech_headers)} speech-header divs")
+                        print(f"  - Total transcript parts: {len(transcript_parts)}")
+                        print(f"  - Final transcript length: {len(transcript_text)} characters")
+                        print(f"  - First 500 characters:")
+                        print(transcript_text[:500] + "..." if len(transcript_text) > 500 else transcript_text)
+                    
+                    loop.quit()  # Exit the event loop
+                
+                # Get the HTML content and wait for it
+                self.web_view.page().toHtml(handle_transcript)
+                loop.exec()  # Wait for the callback to complete
+                
+                if transcript_text:
+                    return transcript_text
+            
+            # Fallback to original method if HTML extraction fails or returns empty
             if hasattr(self.main_window, 'current_session_file') and self.main_window.current_session_file:
+                import json
                 with open(self.main_window.current_session_file, 'r', encoding='utf-8') as f:
                     session_data = json.load(f)
                     return session_data.get('input', {}).get('text', '')
+                    
         except Exception as e:
             print(f"Error getting transcript: {e}")
+            
         return ""
     
     def calculate_annotation_word_count(self, annotations_list):
@@ -795,19 +937,11 @@ class AIStoryboardOrganizer(QDialog):
         print(f"[AI MODEL] Creating model: {selected_model}")
         print(f"[AI MODEL] Thinking budget: {thinking_budget}")
         
-        # Adjust max output tokens based on model
-        if selected_model == "gemini-2.5-pro":
-            max_tokens = 8000
-        else:  # gemini-2.5-flash
-            max_tokens = 4000
-        
-        print(f"[AI MODEL] Max output tokens: {max_tokens}")
-        
         try:
             generation_config = {
                 "temperature": 0.3,
                 "top_p": 0.8,
-                "max_output_tokens": max_tokens
+                # Remove max_output_tokens limit - let Gemini use its full capacity
             }
             print(f"[AI MODEL] Generation config: {generation_config}")
             
@@ -885,14 +1019,32 @@ class AIStoryboardOrganizer(QDialog):
             
             self.status_label.setText("Loading transcript...")
             
-            # Get full transcript
-            full_text = self.get_full_transcript()
-            if not full_text:
-                error_msg = "No transcript text found in current session. Please load a transcript file first."
-                self.status_label.setText(f"❌ {error_msg}")
-                self.status_label.setStyleSheet("color: #EF4444;")
-                QMessageBox.warning(self, "Data Error", error_msg)
-                return
+            # Get full transcript only if checkbox is checked
+            full_text = ""
+            if self.full_transcript_checkbox.isChecked():
+                full_text = self.get_full_transcript()
+                if not full_text:
+                    error_msg = "No transcript text found in current session. Please load a transcript file first."
+                    self.status_label.setText(f"❌ {error_msg}")
+                    self.status_label.setStyleSheet("color: #EF4444;")
+                    QMessageBox.warning(self, "Data Error", error_msg)
+                    return
+                
+                # Check if transcript is large and warn user
+                if len(full_text) > 500000:
+                    msg = QMessageBox(self)
+                    msg.setWindowTitle("Large Transcript Warning")
+                    msg.setText("The transcript is very large (over 500,000 characters).")
+                    msg.setInformativeText("Including full transcript will consume a significant number of tokens. Do you want to continue?")
+                    msg.setDetailedText(f"Transcript size: {len(full_text):,} characters\n\n"
+                                       f"This will consume substantial API tokens and may be expensive. "
+                                       f"Consider unchecking 'Include full transcript' for a more economical approach.")
+                    msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                    msg.setDefaultButton(QMessageBox.StandardButton.No)
+                    msg.setIcon(QMessageBox.Icon.Warning)
+                    
+                    if msg.exec() == QMessageBox.StandardButton.No:
+                        return
             
             self.status_label.setText("Formatting annotations...")
             
@@ -957,8 +1109,49 @@ Current available content: {total_word_count} words ({current_duration_formatted
 IMPORTANT: Select annotations to match the target duration. You can use fewer annotations than available to meet the length requirement.
 """
             
-            # Create the enhanced prompt with thinking budget
-            prompt = f"""<thinking>
+            # Check if using custom prompt mode
+            use_custom_prompt = self.custom_prompt_checkbox.isChecked()
+            
+            if use_custom_prompt:
+                # Custom prompt mode - just use user's instructions with minimal structure
+                prompt = f"""<thinking>
+The user wants you to organize annotations according to their custom instructions. Follow their specific requirements exactly.
+
+Budget: {thinking_budget} tokens for reasoning about how to best fulfill their request.
+</thinking>
+
+{user_notes if user_notes else "Organize the annotations as requested."}
+
+{f"CONTEXT - Full transcript for reference {context_note}:\n{transcript_context}\n\n" if transcript_context else ""}AVAILABLE ANNOTATIONS TO ORGANIZE:
+Each annotation includes: ID, quoted text, and metadata (notes, favorite status, tags, themes).
+
+{annotations_list}
+
+OPTIONAL ORGANIZATIONAL TOOLS:
+
+DIVIDERS: Create categorical divisions to show different sections. Use this format:
+DIVIDER :: "Section Name" :: Order#X :: #color
+Available colors: #fff4c9 (yellow), #d7ffb8 (green), #ffcccb (red), #e6ccff (purple), #ccf2ff (blue)
+
+HEADERS: Add quick couple-word notes on why an annotation was selected. Use sparingly:
+complete-annotation-id-here :: Order#X :: HEADER :: "Brief note"
+
+RESPONSE FORMAT:
+Respond with annotation IDs and order numbers, one per line:
+
+For annotations (most common):
+complete-annotation-id-here :: Order#0
+
+For annotations with headers (use sparingly):
+complete-annotation-id-here :: Order#1 :: HEADER :: "Brief note"
+
+For dividers:
+DIVIDER :: "Section Name" :: Order#X :: #color
+
+CRITICAL: You MUST use the complete annotation ID exactly as provided in the list above. Do NOT truncate, shorten, or modify the IDs in any way."""
+            else:
+                # Standard video script prompt
+                prompt = f"""<thinking>
 You are organizing interview/transcript annotations into a coherent video script. Take time to analyze the content deeply and consider multiple narrative approaches.
 
 Budget: {thinking_budget} tokens for reasoning about the best narrative structure.
@@ -991,7 +1184,9 @@ USER'S VIDEO GOALS AND NOTES:
 
 TASK: Create a logical narrative flow for a video. Consider:
 - Opening hooks and context setting
-- Natural topic transitions
+- Introduce the MAJOR compelling problem or emotional hook that motivates the individual(s), the story, or the organization/product before jumping to outcomes
+- Establish the fundamental challenge or condition that creates the need before discussing solutions or comparisons
+- Natural topic transitions that follow a logical progression
 - Building to key moments/climax
 - Strong conclusions
 - Pay special attention to favorited annotations (favorite: true) as key moments
@@ -1020,12 +1215,14 @@ Examples:
 RESPONSE FORMAT:
 You can mix annotations, headers, and dividers. Respond with one of these per line:
 
+CRITICAL: You MUST use the complete annotation ID exactly as provided in the list above. Do NOT truncate, shorten, or modify the IDs in any way.
+
 For annotations (MOST COMMON):
-annotation-id-here :: Order#0
+complete-annotation-id-here :: Order#0
 
 {f"""
 For annotations with headers (use sparingly):
-annotation-id-here :: Order#1 :: HEADER :: "Production Note"
+complete-annotation-id-here :: Order#1 :: HEADER :: "Production Note"
 """ if use_headers else ""}
 {f"""
 For dividers:
@@ -1037,9 +1234,9 @@ DIVIDER :: "Section Name" :: Order#X :: #color
 Use actual annotation IDs from the list above. You don't need to use all annotations - only include the ones that fit the narrative.
 Do not include any explanations, comments, or other text."""
 
-            # Show progress
-            self.progress_bar.setVisible(True)
-            self.progress_bar.setRange(0, 0)  # Indeterminate
+            # Show progress bar and update status
+            self.progress_bar.show()
+            self.progress_bar.setFormat("AI is analyzing annotations...")
             self.process_btn.setEnabled(False)
             self.status_label.setText("Sending request to AI...")
             self.debug_display.clear()
@@ -1066,6 +1263,9 @@ Do not include any explanations, comments, or other text."""
     
     def on_ai_response_chunk(self, chunk_text):
         """Handle streaming AI response chunks"""
+        # Update progress bar to show AI is generating
+        self.progress_bar.setFormat("AI is generating script organization...")
+        
         # Append chunk to debug display
         current_text = self.debug_display.toPlainText()
         self.debug_display.setPlainText(current_text + chunk_text)
@@ -1077,8 +1277,8 @@ Do not include any explanations, comments, or other text."""
     
     def on_ai_response(self, response_text):
         """Handle AI response"""
-        # Hide progress
-        self.progress_bar.setVisible(False)
+        # Hide progress bar
+        self.progress_bar.hide()
         self.process_btn.setEnabled(True)
         
         # Display raw response (for non-streaming or final complete response)
@@ -1146,9 +1346,9 @@ Do not include any explanations, comments, or other text."""
                             header_preview = f" [{header_text}]" if header_text else ""
                             parsed_lines.append(f"Order #{order_num}: {preview_text}{header_preview}")
                         else:
-                            parsed_lines.append(f"⚠️ Unknown ID: {anno_id}")
+                            parsed_lines.append(f"Warning - Unknown ID: {anno_id}")
                 except Exception as e:
-                    parsed_lines.append(f"⚠️ Parse error on line: {line}")
+                    parsed_lines.append(f"Warning - Parse error on line: {line}")
         
         # Display parsed results
         if parsed_lines:
@@ -1179,7 +1379,8 @@ Do not include any explanations, comments, or other text."""
     
     def on_ai_error(self, error_message):
         """Handle AI processing error"""
-        self.progress_bar.setVisible(False)
+        # Hide progress bar on error
+        self.progress_bar.hide()
         self.process_btn.setEnabled(True)
         
         # Provide more specific error messages
@@ -1232,10 +1433,10 @@ Do not include any explanations, comments, or other text."""
             
             if clear_msg.exec() == QMessageBox.StandardButton.Yes:
                 # Clear the storyboard first
-                print("🗑️ [AI STORYBOARD] User chose to clear existing storyboard before applying AI organization")
+                print("[AI STORYBOARD] User chose to clear existing storyboard before applying AI organization")
                 if hasattr(storyboard_dialog, 'clear_final_order'):
                     # Call the clear method without showing the confirmation dialog
-                    print("🗑️ [AI STORYBOARD] Clearing storyboard...")
+                    print("[AI STORYBOARD] Clearing storyboard...")
                     storyboard_dialog.order_list.clear()
                     
                     # Clear order values from annotations (same logic as clear_final_order but without confirmation)
@@ -1270,9 +1471,9 @@ Do not include any explanations, comments, or other text."""
                     if hasattr(self.main_window, 'web_view'):
                         self.main_window.web_view.page().runJavaScript(js_code)
                     
-                    print("✅ [AI STORYBOARD] Storyboard cleared, proceeding with AI organization")
+                    print("[AI STORYBOARD] Storyboard cleared, proceeding with AI organization")
                 else:
-                    print("❌ [AI STORYBOARD] Could not find clear_final_order method")
+                    print("[AI STORYBOARD] Could not find clear_final_order method")
             else:
                 print("🚫 [AI STORYBOARD] User canceled AI organization due to existing storyboard content")
                 return
@@ -1292,7 +1493,7 @@ Do not include any explanations, comments, or other text."""
     def apply_storyboard_updates(self):
         """Apply the parsed updates to DOM and Python model"""
         try:
-            print(f"🎯🎯🎯 [AI STORYBOARD] Starting to apply {len(self.parsed_updates)} updates... 🎯🎯🎯")
+            print(f"[AI STORYBOARD] Starting to apply {len(self.parsed_updates)} updates...")
             
             # Check for existing dividers and their order numbers to avoid conflicts
             print(f"🔍🔍🔍 [AI STORYBOARD] Checking for existing dividers... 🔍🔍🔍")
@@ -1304,9 +1505,9 @@ Do not include any explanations, comments, or other text."""
                     print(f"🚧🚧🚧 [AI STORYBOARD] Found divider with order {order_num}: {anno['storyboard'].get('text', 'Unknown')} 🚧🚧🚧")
             
             if divider_orders:
-                print(f"⚠️⚠️⚠️ [AI STORYBOARD] Found {len(divider_orders)} dividers with orders: {divider_orders} ⚠️⚠️⚠️")
+                print(f"[AI STORYBOARD] Found {len(divider_orders)} dividers with orders: {divider_orders}")
                 max_divider_order = max(divider_orders)
-                print(f"📊📊📊 [AI STORYBOARD] Highest divider order: {max_divider_order} 📊📊📊")
+                print(f"[AI STORYBOARD] Highest divider order: {max_divider_order}")
                 
                 # Adjust all annotation orders to start after the highest divider
                 print(f"🔧🔧🔧 [AI STORYBOARD] Adjusting annotation orders to start after {max_divider_order} 🔧🔧🔧")
@@ -1317,9 +1518,9 @@ Do not include any explanations, comments, or other text."""
                     print(f"🔄🔄🔄 [AI STORYBOARD] Adjusted {anno_id}: order {order_num} -> {new_order} 🔄🔄🔄")
                 
                 self.parsed_updates = adjusted_updates
-                print(f"✅✅✅ [AI STORYBOARD] All orders adjusted to avoid divider conflicts ✅✅✅")
+                print(f"[AI STORYBOARD] All orders adjusted to avoid divider conflicts")
             else:
-                print(f"✅✅✅ [AI STORYBOARD] No dividers found, keeping original orders ✅✅✅")
+                print(f"[AI STORYBOARD] No dividers found, keeping original orders")
             
             # Debug: Show what annotations we have access to
             print(f"🔍🔍🔍 [AI STORYBOARD] We have {len(self.annotations)} annotations in self.annotations 🔍🔍🔍")
@@ -1329,7 +1530,7 @@ Do not include any explanations, comments, or other text."""
                 main_annotations = self.main_window.web_view.annotations
                 print(f"🌟🌟🌟 [AI STORYBOARD] Main window has {len(main_annotations)} annotations 🌟🌟🌟")
             else:
-                print(f"⚠️⚠️⚠️ [AI STORYBOARD] Cannot access main window annotations ⚠️⚠️⚠️")
+                print(f"[AI STORYBOARD] Warning: Cannot access main window annotations")
                 main_annotations = None
             
             # Update DOM attributes
@@ -1852,15 +2053,16 @@ Only provide the new ordering, no explanations."""
         # Clear followup input
         self.followup_input.clear()
         
-        # Show progress and process
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)
+        # Show progress bar for followup
+        self.progress_bar.show()
+        self.progress_bar.setFormat("AI is processing followup question...")
         self.ask_followup_btn.setEnabled(False)
         self.status_label.setText("Processing followup question...")
         
         # Create fresh AI model and start processing
         self.ai_model = self.create_ai_model()
         if not self.ai_model:
+            self.progress_bar.hide()
             QMessageBox.warning(self, "Error", "AI model not configured.")
             return
             
@@ -1874,8 +2076,8 @@ Only provide the new ordering, no explanations."""
     
     def on_followup_response(self, response_text):
         """Handle followup AI response"""
-        # Re-enable controls
-        self.progress_bar.setVisible(False)
+        # Hide progress bar and re-enable controls
+        self.progress_bar.hide()
         self.ask_followup_btn.setEnabled(True)
         
         # Display response (streaming already handled chunks)
@@ -1894,7 +2096,8 @@ Only provide the new ordering, no explanations."""
     
     def on_followup_error(self, error_message):
         """Handle followup AI error"""
-        self.progress_bar.setVisible(False)
+        # Hide progress bar and re-enable controls
+        self.progress_bar.hide()
         self.ask_followup_btn.setEnabled(True)
         self.status_label.setText(f"Error: {error_message}")
         self.status_label.setStyleSheet("color: #EF4444;")
