@@ -12,9 +12,9 @@
   * Now uses a custom pixmap `paintEvent` ibeam cursor for better visibility and contrast
 * **AIQueryDialog** improved UX and functionality:
 
-  * Efficiently maintains context when handling follow-up questions
+  * More efficiently maintains context when handling follow-up questions
   * New **"Use Full Transcript"** checkbox to apply the entire transcript as context
-  * Can now provide transcript quotes in hyperlinks that directly scroll to and locate them in the DOM
+  * If the user asks to find a quote, Gemini will now provide transcript quotes in hyperlinks that directly scroll to and locate them in the DOM
 
 ### **v3.5.0**
 
