@@ -369,10 +369,13 @@
 
 #### Major New Features
 
-* **Syntax Highlighting System**
+* **Transcript Creation Overhaul**
 
-  * Live text formatting (headers, dividers, orphaned text detection)
+  * Live text formatting (headers, dividers, orphaned text detection) to improve UX when creating transcript.
   * Real-time analysis with auto-fix options
+  * Auto wrap headers, paste formatting dialog
+  * Preserve header options, reflow tools
+
 
 * **Enhanced Script Editor & Storyboard System**
 
@@ -395,23 +398,27 @@
 
   * EPUB import, PDF extraction, enhanced captions tools
 
-* **Advanced Editing Features**
-
-  * Auto wrap headers, paste formatting dialog
-  * Preserve header options, reflow tools
-
 * **User Interface Enhancements**
 
   * Interactive tooltips, table of contents, auto-fill footnotes
   * Enhanced DOM context menu, streamlined UI
+  * Major UX improvements and features across the board in every dialog.
+ 
+ * **Gemini API Integration**
+
+  * Direct captions processor built into the application, with default prompt and custom prompt creation and saving.
+  * Added gemini api chat interface built into the transcriptwebview.
+  * Quick Summary, Quick Explain, and Full Chat context menu options...
+
+ * **Tooltips**
+
+  * Added hoverable tooltips to the HTML DOM over highlighted annotations.
 
 #### Major Improvements & Fixes
 
 * **Performance & Stability**
 
-  * Syntax highlighter optimization
-  * Better memory management and load feedback
-  * Batch processing efficiency
+  * Some performance improvements, batch processing.
 
 * **Annotation & Highlighting**
 
@@ -421,17 +428,19 @@
 * **User Experience**
 
   * Full dark mode consistency
+  * Highlighted annotations in the DOM have better visual separation from eachother, hover states and more to make it easy to see and discern them from eachother.
   * Consolidated UI, improved error messages
   * Enhanced context menus
 
 * **Visual & Interface Updates**
 
-  * Cleaner design, improved typography, dynamic highlights
+  * Cleaner design, improved typography, dynamic highlights with hover states
   * Streamlined toolbar and progress indicators
 
 * **Notable Bug Fixes**
 
-  * Strikethrough overhaul (fixed corruption)
-  * Window management fixes
+  * Major work done on strikethrough handling and preservation during split annotations. (fixed corruption issues)
+  * Can now *highlight across line-breaks*
+  * Window management improvement
   * Annotation preservation during edits
-  * Improved navigation and scroll memory
+  * Improved navigation and scroll pos preservation during many different actions
