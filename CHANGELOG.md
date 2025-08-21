@@ -392,12 +392,6 @@
   * Auto wrap headers, paste formatting dialog
   * Preserve header options, reflow tools
 
-
-* **Enhanced Script Editor & Storyboard System**
-
-  * Word counter, script timer, search, PDF export
-  * Text-to-speech, modern design, improved rendering
-
 * **Script Editor Enhancements**
 
   * New action menu with several new options like PDF creation, Mark All Used/Unused.
