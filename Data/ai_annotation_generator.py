@@ -50,6 +50,12 @@ class AIWorkerThread(QThread):
                 
                 if NEW_API:
                     # Use new google.genai API with thinking budget support
+                    print(f"DEBUG: Using NEW API (google.genai) - attempt {attempt + 1}")
+                    print(f"DEBUG: API key length: {len(self.api_key) if self.api_key else 0}")
+                    print(f"DEBUG: API key starts with: {self.api_key[:10]}..." if self.api_key and len(self.api_key) > 10 else "DEBUG: API key too short or missing")
+                    print(f"DEBUG: Prompt length: {len(self.prompt)} characters")
+                    print(f"DEBUG: Thinking budget: {self.thinking_budget}")
+                    
                     client = genai.Client(api_key=self.api_key)
                     
                     # Configure generation with thinking budget
@@ -64,17 +70,25 @@ class AIWorkerThread(QThread):
                             thinking_budget=self.thinking_budget
                         )
                     
+                    print(f"DEBUG: Making API call to gemini-2.5-pro...")
                     # Generate response with streaming
                     response = client.models.generate_content(
                         model="gemini-2.5-pro",
                         contents=self.prompt,
                         config=config
                     )
+                    print(f"DEBUG: API call completed, processing response...")
                 else:
                     # Fallback to old google.generativeai API
+                    print(f"DEBUG: Using OLD API (google.generativeai) - attempt {attempt + 1}")
+                    print(f"DEBUG: API key length: {len(self.api_key) if self.api_key else 0}")
+                    print(f"DEBUG: API key starts with: {self.api_key[:10]}..." if self.api_key and len(self.api_key) > 10 else "DEBUG: API key too short or missing")
+                    print(f"DEBUG: Prompt length: {len(self.prompt)} characters")
+                    
                     genai.configure(api_key=self.api_key)
                     model = genai.GenerativeModel('gemini-2.5-pro')
                     
+                    print(f"DEBUG: Making streaming API call to gemini-2.5-pro...")
                     # Generate response with streaming (no thinking budget support)
                     response = model.generate_content(
                         self.prompt,
@@ -84,33 +98,131 @@ class AIWorkerThread(QThread):
                         ),
                         stream=True
                     )
+                    print(f"DEBUG: Streaming API call initiated, processing chunks...")
                 
                 if NEW_API:
                     # New API returns text directly
-                    full_response = response.text if hasattr(response, 'text') else str(response)
+                    print(f"DEBUG: Processing NEW API response...")
+                    print(f"DEBUG: Response object type: {type(response)}")
+                    print(f"DEBUG: Response has 'text' attribute: {hasattr(response, 'text')}")
+                    
+                    if hasattr(response, 'text'):
+                        full_response = response.text
+                        print(f"DEBUG: Response.text length: {len(full_response) if full_response else 0}")
+                        if full_response:
+                            print(f"DEBUG: Response starts with: '{full_response[:100]}...'")
+                        else:
+                            print(f"DEBUG: Response.text is empty or None: {repr(full_response)}")
+                    else:
+                        full_response = str(response)
+                        print(f"DEBUG: No 'text' attribute, using str(response): '{full_response[:100]}...'")
+                    
                     if full_response:
+                        print(f"DEBUG: Emitting successful response ({len(full_response)} chars)")
                         self.chunk_received.emit(full_response)
                         self.response_received.emit(full_response)
                         return  # Success - exit retry loop
                     else:
-                        self.error_occurred.emit("No response generated from AI")
+                        # Analyze the empty response to provide better error information
+                        print(f"DEBUG: Empty response from API - analyzing response object...")
+                        
+                        # Check for candidates and finish reasons
+                        candidates_info = ""
+                        if hasattr(response, 'candidates') and response.candidates:
+                            candidate = response.candidates[0]
+                            finish_reason = getattr(candidate, 'finish_reason', 'UNKNOWN')
+                            safety_ratings = getattr(candidate, 'safety_ratings', None)
+                            
+                            candidates_info = f"Finish reason: {finish_reason}"
+                            if safety_ratings:
+                                candidates_info += f", Safety ratings: {safety_ratings}"
+                            
+                            print(f"DEBUG: Candidate analysis: {candidates_info}")
+                            
+                            # Check if content filtering might be the issue
+                            if finish_reason == 'SAFETY':
+                                error_msg = (
+                                    "AI response blocked by safety filters. This may be due to:\n"
+                                    "• Content in your transcript triggering safety systems\n"
+                                    "• Try simplifying your prompt or filtering sensitive content\n"
+                                    f"• Technical details: {candidates_info}"
+                                )
+                            elif finish_reason == 'MAX_TOKENS':
+                                error_msg = (
+                                    "AI response truncated due to token limits. Try:\n"
+                                    "• Reducing transcript length\n"
+                                    "• Processing fewer annotations at once\n"
+                                    "• Using a lower thinking budget\n"
+                                    f"• Technical details: {candidates_info}"
+                                )
+                            elif finish_reason == 'STOP':
+                                # Check usage metadata for more clues
+                                usage_info = ""
+                                if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                                    usage = response.usage_metadata
+                                    prompt_tokens = getattr(usage, 'prompt_token_count', 0)
+                                    total_tokens = getattr(usage, 'total_token_count', 0)
+                                    thoughts_tokens = getattr(usage, 'thoughts_token_count', 0)
+                                    usage_info = f" (Prompt: {prompt_tokens}, Total: {total_tokens}, Thoughts: {thoughts_tokens} tokens)"
+                                
+                                error_msg = (
+                                    "AI completed processing but returned no content. This may be due to:\n\n"
+                                    "LIKELY CAUSES:\n"
+                                    "• Content filtering or safety restrictions\n"
+                                    "• Prompt too complex or confusing for the AI\n"
+                                    "• Annotation format issues (missing IDs, malformed text)\n\n"
+                                    "TRY THESE SOLUTIONS:\n"
+                                    "• Use fewer annotations per request (try 5-10 instead of 17)\n"
+                                    "• Disable 'Use Full Transcript Context' to reduce complexity\n"
+                                    "• Lower the thinking budget (try 1000 instead of 2000)\n"
+                                    "• Check for unusual characters or content in annotations\n\n"
+                                    f"Technical details: {candidates_info}{usage_info}"
+                                )
+                            else:
+                                error_msg = f"AI processing stopped unexpectedly: {finish_reason}\n{candidates_info}"
+                        else:
+                            error_msg = "No response candidates received from AI API"
+                        
+                        print(f"DEBUG: Detailed error analysis: {error_msg}")
+                        self.error_occurred.emit(error_msg)
                         return
                 else:
                     # Old API streaming handling
+                    print(f"DEBUG: Processing OLD API streaming response...")
                     full_response = ""
+                    chunk_count = 0
+                    
                     for chunk in response:
-                        if chunk.text:
-                            full_response += chunk.text
-                            self.chunk_received.emit(chunk.text)
+                        chunk_count += 1
+                        print(f"DEBUG: Processing chunk {chunk_count}: has text={hasattr(chunk, 'text')}")
+                        
+                        if hasattr(chunk, 'text') and chunk.text:
+                            chunk_text = chunk.text
+                            print(f"DEBUG: Chunk {chunk_count} text length: {len(chunk_text)}")
+                            full_response += chunk_text
+                            self.chunk_received.emit(chunk_text)
+                        else:
+                            print(f"DEBUG: Chunk {chunk_count} has no text or empty text: {repr(getattr(chunk, 'text', 'NO_TEXT_ATTR'))}")
+                            
+                    print(f"DEBUG: Processed {chunk_count} chunks, total response length: {len(full_response)}")
                             
                     if full_response:
+                        print(f"DEBUG: Emitting successful streaming response ({len(full_response)} chars)")
                         self.response_received.emit(full_response)
                         return  # Success - exit retry loop
                     else:
-                        self.error_occurred.emit("No response generated from AI")
+                        print(f"DEBUG: No content received from {chunk_count} streaming chunks")
+                        self.error_occurred.emit(f"No response generated from AI - processed {chunk_count} chunks but no text content")
                         return
                         
             except Exception as e:
+                print(f"DEBUG: Exception occurred on attempt {attempt + 1}: {type(e).__name__}: {str(e)}")
+                
+                # Import traceback for detailed error info
+                import traceback
+                error_traceback = traceback.format_exc()
+                print(f"DEBUG: Full traceback:\n{error_traceback}")
+                
                 error_str = str(e).lower()
                 
                 # Check if this is a retryable error
@@ -120,9 +232,11 @@ class AIWorkerThread(QThread):
                 ]
                 
                 is_retryable = any(err in error_str for err in retryable_errors)
+                print(f"DEBUG: Error classified as retryable: {is_retryable}")
+                print(f"DEBUG: Attempt {attempt + 1}/{self.max_retries + 1}, can retry: {attempt < self.max_retries}")
                 
                 if is_retryable and attempt < self.max_retries:
-                    print(f"Retryable error on attempt {attempt + 1}: {str(e)}")
+                    print(f"DEBUG: Retrying after retryable error on attempt {attempt + 1}: {str(e)}")
                     continue  # Try again
                 else:
                     # Final attempt failed or non-retryable error
@@ -131,11 +245,21 @@ class AIWorkerThread(QThread):
                             f"AI service temporarily unavailable after {self.max_retries + 1} attempts.\n\n"
                             f"This appears to be a temporary issue with the Gemini API service. "
                             f"Please try again in a few moments.\n\n"
-                            f"Original error: {str(e)}"
+                            f"Original error: {str(e)}\n\n"
+                            f"Full traceback:\n{error_traceback}"
                         )
+                        print(f"DEBUG: Emitting retry suggestion after exhausted retries")
                         self.retry_suggested.emit(error_message)
                     else:
-                        self.error_occurred.emit(f"AI request failed: {str(e)}")
+                        detailed_error = (
+                            f"AI request failed: {str(e)}\n\n"
+                            f"Error type: {type(e).__name__}\n"
+                            f"API: {'NEW (google.genai)' if NEW_API else 'OLD (google.generativeai)'}\n"
+                            f"Attempt: {attempt + 1}/{self.max_retries + 1}\n\n"
+                            f"Full traceback:\n{error_traceback}"
+                        )
+                        print(f"DEBUG: Emitting non-retryable error")
+                        self.error_occurred.emit(detailed_error)
                     return
 
 
@@ -1406,6 +1530,8 @@ class AINotesGenerator(QDialog):
         total_annotations = len(self.web_view.annotations)
         skipped_dividers = 0
         
+        print(f"DEBUG CATEGORIZATION: Processing {total_annotations} total annotations...")
+        
         for annotation in self.web_view.annotations:
             # Skip dividers - they are structural elements, not content annotations
             if annotation.get('divider'):
@@ -1415,25 +1541,40 @@ class AINotesGenerator(QDialog):
             # Check if annotation lacks notes or notes_html
             notes = annotation.get('notes', '').strip()
             notes_html = annotation.get('notes_html', '').strip()
+            annotation_id = annotation.get('id', 'NO_ID')
+            annotation_text = annotation.get('text', '')[:50] + "..." if len(annotation.get('text', '')) > 50 else annotation.get('text', '')
+            
+            print(f"DEBUG CATEGORIZATION: Annotation {annotation_id}: '{annotation_text}'")
+            print(f"                      notes: {'EXISTS' if notes else 'MISSING'} ({len(notes)} chars)")
+            print(f"                      notes_html: {'EXISTS' if notes_html else 'MISSING'} ({len(notes_html)} chars)")
             
             # Categorize annotations
             if not notes and not notes_html:
                 # Both empty - add to without_notes
                 self.annotations_without_notes.append(annotation)
+                print(f"                      -> ADDED to annotations_without_notes (both missing)")
             elif not notes or not notes_html:
                 # One is empty but not both - add to partial_notes
                 annotation['_missing_notes'] = not notes  # Track which field is missing
                 annotation['_missing_notes_html'] = not notes_html
                 self.annotations_with_partial_notes.append(annotation)
+                missing_field = "notes" if not notes else "notes_html"
+                print(f"                      -> ADDED to annotations_with_partial_notes (missing {missing_field})")
+            else:
+                print(f"                      -> SKIPPED (both notes and notes_html exist)")
         
         count_without_notes = len(self.annotations_without_notes)
         count_partial_notes = len(self.annotations_with_partial_notes)
         content_annotations = total_annotations - skipped_dividers
         
+        print(f"DEBUG CATEGORIZATION SUMMARY:")
+        print(f"  Content annotations: {content_annotations}")
+        print(f"  annotations_without_notes: {count_without_notes}")
+        print(f"  annotations_with_partial_notes: {count_partial_notes}")
+        print(f"  annotations with both notes+notes_html: {content_annotations - count_without_notes - count_partial_notes}")
+        
         # Update stats label
         stats_text = f"📊 Found {count_without_notes} annotations without notes/commentary, {count_partial_notes} with partial notes/commentary out of {content_annotations} content annotations"
-        if skipped_dividers > 0:
-            stats_text += f" ({skipped_dividers} dividers skipped)"
         self.stats_label.setText(stats_text)
         
         # Update annotations display  
@@ -1491,6 +1632,24 @@ class AINotesGenerator(QDialog):
         
         # Combine annotations needing processing
         annotations_to_process = self.annotations_without_notes + self.annotations_with_partial_notes
+        
+        print(f"DEBUG PROMPT CREATION: Combining annotations for AI processing")
+        print(f"  From annotations_without_notes: {len(self.annotations_without_notes)} annotations")
+        for i, ann in enumerate(self.annotations_without_notes):
+            print(f"    {i+1}. {ann.get('id', 'NO_ID')} - '{ann.get('text', '')[:30]}...'")
+        
+        print(f"  From annotations_with_partial_notes: {len(self.annotations_with_partial_notes)} annotations")
+        for i, ann in enumerate(self.annotations_with_partial_notes):
+            missing_notes = ann.get('_missing_notes', False)
+            missing_notes_html = ann.get('_missing_notes_html', False)
+            missing_info = []
+            if missing_notes:
+                missing_info.append("notes")
+            if missing_notes_html:
+                missing_info.append("notes_html")
+            print(f"    {i+1}. {ann.get('id', 'NO_ID')} - '{ann.get('text', '')[:30]}...' (missing: {', '.join(missing_info)})")
+        
+        print(f"  Total annotations_to_process: {len(annotations_to_process)}")
         
         if not annotations_to_process:
             return None
@@ -1649,10 +1808,7 @@ Only provide notes in the specified format. No additional text or explanations."
             QMessageBox.warning(self, "API Key Required", "Please configure your Gemini API key first.")
             return
         
-        # Validate user inputs
-        if not self.transcript_title.text().strip():
-            QMessageBox.warning(self, "Missing Information", "Please provide a transcript title.")
-            return
+        # Validate user inputs (transcript title and description are optional per user feedback)
         
         # Check if full transcript context is enabled and transcript is large
         use_context = self.use_full_context.isChecked()
@@ -1828,31 +1984,52 @@ Only provide notes in the specified format. No additional text or explanations."
             print(f"DEBUG: Brief notes: '{brief_notes}'")
             print(f"DEBUG: Detailed notes ({len(detailed_notes)} chars): '{detailed_notes[:100]}{'...' if len(detailed_notes) > 100 else ''}'")
             
-            # Find the corresponding annotation
+            # Find the corresponding annotation in both lists
             found_annotation = None
+            found_in_list = None
+            
+            # First check annotations_without_notes
             for annotation in self.annotations_without_notes:
                 if annotation.get('id') == annotation_id:
                     found_annotation = annotation
+                    found_in_list = "annotations_without_notes"
                     break
             
+            # If not found, check annotations_with_partial_notes
+            if not found_annotation:
+                for annotation in self.annotations_with_partial_notes:
+                    if annotation.get('id') == annotation_id:
+                        found_annotation = annotation
+                        found_in_list = "annotations_with_partial_notes"
+                        break
+            
             if found_annotation:
+                # Add debug info about current state
+                current_notes = found_annotation.get('notes', '').strip()
+                current_notes_html = found_annotation.get('notes_html', '').strip()
+                
                 self.parsed_notes.append({
                     'annotation_id': annotation_id,
                     'annotation': found_annotation,
                     'brief_notes': brief_notes,
                     'detailed_notes': detailed_notes
                 })
-                print(f"DEBUG: ✅ Successfully matched annotation {annotation_id}")
+                print(f"DEBUG: ✅ Successfully matched annotation {annotation_id} from {found_in_list}")
+                print(f"DEBUG:    Current state - notes: {'EXISTS' if current_notes else 'MISSING'}, notes_html: {'EXISTS' if current_notes_html else 'MISSING'}")
+                print(f"DEBUG:    Will add - notes: {'YES' if brief_notes != 'SKIP' and not current_notes else 'NO'}, notes_html: {'YES' if detailed_notes != 'SKIP' and not current_notes_html else 'NO'}")
             else:
                 error_detail = f"Could not find annotation with ID '{annotation_id}'"
                 failed_matches.append(error_detail)
                 print(f"DEBUG: ❌ {error_detail}")
+                print(f"DEBUG:    Searched {len(self.annotations_without_notes)} annotations_without_notes")
+                print(f"DEBUG:    Searched {len(self.annotations_with_partial_notes)} annotations_with_partial_notes")
                 
         if failed_matches:
             print(f"DEBUG: Failed to match {len(failed_matches)} annotations:")
             for error in failed_matches:
                 print(f"DEBUG:   - {error}")
-            print(f"DEBUG: Available annotation IDs: {[a.get('id') for a in self.annotations_without_notes]}")
+            print(f"DEBUG: Available annotation IDs in annotations_without_notes: {[a.get('id') for a in self.annotations_without_notes]}")
+            print(f"DEBUG: Available annotation IDs in annotations_with_partial_notes: {[a.get('id') for a in self.annotations_with_partial_notes]}")
         
         print(f"DEBUG: Successfully parsed {len(self.parsed_notes)} valid notes")
         return len(self.parsed_notes)
@@ -1930,31 +2107,53 @@ Only provide notes in the specified format. No additional text or explanations."
                 notes_to_show = note_data['brief_notes'] if note_data['brief_notes'] != "SKIP" else None
                 notes_html_to_show = note_data['detailed_notes'] if note_data['detailed_notes'] != "SKIP" else None
                 
-                if notes_to_show or notes_html_to_show:
-                    self.update_annotation_notes_in_theme_view(annotation_id, notes_to_show, notes_html_to_show)
-                    print(f"DEBUG: Updated annotation display for {annotation_id}")
+                # Only update theme view if we actually have new content to show
+                # When SKIP, we preserve existing content by not calling the update method
+                if notes_to_show is not None or notes_html_to_show is not None:
+                    # Only pass non-None values to prevent overwriting existing content
+                    if notes_to_show is not None and notes_html_to_show is not None:
+                        # Both need updating
+                        self.update_annotation_notes_in_theme_view(annotation_id, notes_to_show, notes_html_to_show)
+                        print(f"DEBUG: Updated annotation display for {annotation_id} (both notes and notes_html)")
+                    elif notes_to_show is not None:
+                        # Only notes needs updating, preserve existing notes_html
+                        current_notes_html = annotation.get('notes_html', '')
+                        self.update_annotation_notes_in_theme_view(annotation_id, notes_to_show, current_notes_html)
+                        print(f"DEBUG: Updated annotation display for {annotation_id} (notes only, preserved notes_html)")
+                    elif notes_html_to_show is not None:
+                        # Only notes_html needs updating, preserve existing notes
+                        current_notes = annotation.get('notes', '')
+                        self.update_annotation_notes_in_theme_view(annotation_id, current_notes, notes_html_to_show)
+                        print(f"DEBUG: Updated annotation display for {annotation_id} (notes_html only, preserved notes)")
                 else:
                     print(f"DEBUG: No UI updates needed for {annotation_id} (all values were SKIP)")
                     
                 # Send comprehensive DOM update using annotation_updated signal
                 if hasattr(self.web_view, 'annotation_updated'):
                     import json
+                    
+                    # Use current annotation values, only overriding with AI data if not SKIP
+                    final_notes = annotation.get('notes', '') if note_data['brief_notes'] == "SKIP" else note_data['brief_notes']
+                    final_notes_html = annotation.get('notes_html', '') if note_data['detailed_notes'] == "SKIP" else note_data['detailed_notes']
+                    
                     update_payload = {
                         'id': annotation_id,
                         'text': annotation.get('text', ''),
                         'used': annotation.get('used', False),
                         'favorite': annotation.get('favorite', False),
-                        'notes': note_data['brief_notes'],
-                        'notes_html': note_data['detailed_notes'],
+                        'notes': final_notes,
+                        'notes_html': final_notes_html,
                         'tags': annotation.get('tags', []),
                         'secondary_scenes': annotation.get('secondary_scenes', [])
                     }
                     print(f"DEBUG: Sending comprehensive DOM update:")
-                    print(f"DEBUG: notes='{note_data['brief_notes']}'")
-                    print(f"DEBUG: notes_html='{note_data['detailed_notes'][:50]}...'")
+                    print(f"DEBUG: final_notes='{final_notes}' (AI: '{note_data['brief_notes']}')")
+                    print(f"DEBUG: final_notes_html='{final_notes_html[:50]}...' (AI: '{note_data['detailed_notes'][:50]}...')")
+                    print(f"DEBUG: SKIP protection - notes: {'PROTECTED' if note_data['brief_notes'] == 'SKIP' else 'UPDATED'}")
+                    print(f"DEBUG: SKIP protection - notes_html: {'PROTECTED' if note_data['detailed_notes'] == 'SKIP' else 'UPDATED'}")
                     
                     self.web_view.annotation_updated.emit(json.dumps(update_payload))
-                    print(f"DEBUG: Emitted annotation_updated signal with complete payload")
+                    print(f"DEBUG: Emitted annotation_updated signal with SKIP-protected payload")
                 else:
                     print(f"DEBUG: annotation_updated signal not available")
                 
