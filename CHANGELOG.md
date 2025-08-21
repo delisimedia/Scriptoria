@@ -425,7 +425,6 @@
 
 * **User Experience**
 
-  * Full dark mode consistency
   * Highlighted annotations in the DOM have better visual separation from eachother, hover states and more to make it easy to see and discern them from eachother.
   * Consolidated UI, improved error messages
   * Enhanced context menus
@@ -439,6 +438,7 @@
 
   * Major work done on strikethrough handling and preservation during split annotations. (fixed corruption issues)
   * Can now *highlight across line-breaks*
+  * Fixed bug where if system was set to dark mode, it broke the hardcoded program's light-mode stylings.
   * Window management improvement
   * Annotation preservation during edits
   * Improved navigation and scroll pos preservation during many different actions
