@@ -58,7 +58,7 @@ Download the latest release from the [Releases page](https://github.com/delisime
 **macOS:**
 This application is currently built for Windows and a macOS version is not available.
 
-## Full Changelog for v3.X.X
+### Changelog for v3.X.X
 [Changelog](https://github.com/delisimedia/Scriptoria/blob/main/CHANGELOG.md)
 
 
