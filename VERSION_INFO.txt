@@ -1,3 +1,17 @@
+V3.5.2
+- Overhauled Premiere Pro drag and drop integration. New system is more accurate, and more user friendly. 
+- Drag and drop in premiere can handle annotations that have text segments split up and divided by strikethroughs in an intuitive way.
+- An importer is available that helps speed up the import process of your script into premiere pro. 
+- Fixed bug where "Find" was not functioning anymore in the Headers List within the transcript creator.
+
+V3.5.1
+- New toggleable "View Preview" feature in the Create Transcript tab, allowing you to preview what the final transcript looks like before transcript creation.
+- Replaced ibeam cursor in the QTextEdit within CreateTranscriptTextEdit with a custom pixmap paintEvent ibeam cursor that is more visible and well contrasted against the background.
+- AIQueryDialog improved UX and functionality:
+It now efficiently maintains context when handling follow-up questions.
+New "Use Full Transcript" checkbox that applies the full transcript as context.
+Can now provide quotes from the transcript in hyperlinks that will directly scroll to and find in the DOM.
+
 v3.5.0
 - New  experimental "Generate Script" option in the script editor action menu - will use Gemini to populate the script editor with an arranged order of highlighted annotations. Will add its own dividers and headers if user requests. 
 - New experimental "Generate Annotations" option, which will automatically identify, highlight and generate annotations for you.
