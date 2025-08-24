@@ -407,13 +407,58 @@ class AIAnnotationChatDialog(QDialog):
         except Exception as e:
             print(f"Error loading API key: {e}")
             
+    def _get_active_theme_search(self):
+        """Get the active ThemeViewSearch instance from the main window"""
+        try:
+            # Navigate up to find main window with script_search
+            current_parent = self.main_window
+            while current_parent:
+                if hasattr(current_parent, 'script_search'):
+                    theme_search = current_parent.script_search
+                    # Verify it's the right type and has the filtering method
+                    if hasattr(theme_search, '_annotation_matches_current_filters'):
+                        return theme_search
+                current_parent = getattr(current_parent, 'parent', lambda: None)()
+            
+            print("DEBUG: Could not find ThemeViewSearch instance")
+            return None
+        except Exception as e:
+            print(f"DEBUG: Error getting ThemeViewSearch: {e}")
+            return None
+    
+    def _has_active_filters(self, theme_search):
+        """Check if ThemeViewSearch has any active filters"""
+        if not theme_search:
+            return False
+        
+        return (
+            bool(getattr(theme_search, 'current_search_text', '').strip()) and 
+            getattr(theme_search, 'search_confirmed', False)
+        ) or (
+            bool(getattr(theme_search, 'selected_tags', set()))
+        ) or (
+            bool(getattr(theme_search, 'selected_headers', set()))
+        ) or (
+            bool(getattr(theme_search, 'selected_themes', set()))
+        ) or (
+            getattr(theme_search, 'favorites_only', False)
+        ) or (
+            getattr(theme_search, 'hide_used', 0) != 0  # 0 = show all, 1 = hide used, 2 = show only used
+        ) or (
+            getattr(theme_search, 'global_search_enabled', False)
+        )
+
     def load_annotations_data(self):
-        """Load and prepare annotations data for AI context"""
+        """Load and prepare annotations data for AI context, respecting active filters"""
         if not self.web_view or not hasattr(self.web_view, 'annotations'):
             self.stats_label.setText("❌ No annotations found")
             return
         
+        # Get active theme view search filters
+        theme_search = self._get_active_theme_search()
+        
         self.annotations_data = []
+        total_annotations = 0
         divider_count = 0
         
         for annotation in self.web_view.annotations:
@@ -422,7 +467,14 @@ class AIAnnotationChatDialog(QDialog):
                 divider_count += 1
                 continue
             
-            # Collect annotation data
+            total_annotations += 1
+            
+            # Apply current filters if theme search is available
+            if theme_search and hasattr(theme_search, '_annotation_matches_current_filters'):
+                if not theme_search._annotation_matches_current_filters(annotation):
+                    continue  # Skip filtered out annotations
+            
+            # Include in AI context
             annotation_info = {
                 'id': annotation.get('id', ''),
                 'text': annotation.get('text', ''),
@@ -434,10 +486,35 @@ class AIAnnotationChatDialog(QDialog):
             }
             self.annotations_data.append(annotation_info)
         
-        total_annotations = len(self.annotations_data)
-        self.stats_label.setText(f"{total_annotations} annotations available for AI analysis")
+        filtered_count = len(self.annotations_data)
         
-        print(f"DEBUG: Loaded {total_annotations} annotations for AI chat")
+        # Update stats display to show filtering status
+        if theme_search and self._has_active_filters(theme_search):
+            active_filters = []
+            if getattr(theme_search, 'current_search_text', '').strip() and getattr(theme_search, 'search_confirmed', False):
+                active_filters.append(f"search: '{theme_search.current_search_text[:20]}'")
+            if getattr(theme_search, 'selected_tags', set()):
+                active_filters.append(f"{len(theme_search.selected_tags)} tags")
+            if getattr(theme_search, 'selected_headers', set()):
+                active_filters.append(f"{len(theme_search.selected_headers)} headers")
+            if getattr(theme_search, 'selected_themes', set()):
+                active_filters.append(f"{len(theme_search.selected_themes)} themes")
+            if getattr(theme_search, 'favorites_only', False):
+                active_filters.append("favorites only")
+            if getattr(theme_search, 'hide_used', 0) == 1:
+                active_filters.append("hide used")
+            elif getattr(theme_search, 'hide_used', 0) == 2:
+                active_filters.append("used only")
+            
+            filter_desc = ", ".join(active_filters[:3])  # Show first 3 filters
+            if len(active_filters) > 3:
+                filter_desc += f" + {len(active_filters) - 3} more"
+            
+            self.stats_label.setText(f"{filtered_count}/{total_annotations} annotations available (filtered: {filter_desc})")
+        else:
+            self.stats_label.setText(f"{filtered_count} annotations available for AI analysis")
+        
+        print(f"DEBUG: Loaded {filtered_count}/{total_annotations} annotations for AI chat (filtering: {self._has_active_filters(theme_search)})")
         
     def create_ai_prompt(self, user_query):
         """Create the AI prompt with annotations context"""
