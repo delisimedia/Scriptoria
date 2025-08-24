@@ -1716,7 +1716,7 @@ TARGET SPECIFIC ANNOTATIONS ONLY:
 The user has provided explicit instructions to only target and add notes/commentary to specific annotations that match the following criteria:
 "{target_filter}"
 
-IMPORTANT: Only generate notes/commentary for annotations that clearly match these criteria. Skip annotations that don't fit these requirements by using "SKIP" for both fields.
+IMPORTANT: Only generate notes/commentary for annotations that clearly match these criteria. Do NOT respond at all for annotations that don't fit these requirements - simply omit them from your response entirely.
 """
 
         # Build type-specific instructions
