@@ -16,8 +16,10 @@
   * Can now analyze HTML header tags, and user can make decision on how to handle each tag
   * Also fixed some bugs that were causing wrong results during import
 * **Ask Gemini (Annotations)** now respects filtering in the theme view
-  * You can narrow annotation list that Gemini works with
-* **Generate Notes** feature added
+  * You can narrow annotation list that Gemini works with and accepts title and description input
+* **Generate Notes** improvements
+  * Improved prompt, respects filters, can select annotations and generate notes in a more targeted way
+  * Title and description can now be saved and persist across sessions
 * Fixed bug where **"Find"** was not functioning anymore in the **Headers List** within the transcript creator
 
 ### **v3.5.1**
