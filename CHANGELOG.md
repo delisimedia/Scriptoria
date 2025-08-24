@@ -11,13 +11,14 @@
 * Optimizations to **add_item_with_checkbox** `QWidgets`
   * Notably `QLineEdit` notes replaced with `QLabel` - doubleclick for `QLineEdit`
   * Removed broken caching system and more
+  * Fixed updateItemSize bugs that caused annotations out of scroll area to not resize properly
 * Fixed another bug where **double click handler** wasn't being added to a span after annotation splitting
 * **EPUB importing process** improved
   * Can now analyze HTML header tags, and user can make decision on how to handle each tag
   * Also fixed some bugs that were causing wrong results during import
 * **Ask Gemini (Annotations)** now respects filtering in the theme view
   * You can narrow annotation list that Gemini works with
-* Improved prompt in **Generate Notes** 
+* Improved prompt in **Generate Notes**
 * Fixed bug where **"Find"** was not functioning anymore in the **Headers List** within the transcript creator
 
 ### **v3.5.1**
