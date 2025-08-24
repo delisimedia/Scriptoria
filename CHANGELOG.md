@@ -3,7 +3,7 @@
 ### **v3.5.2**
 *Improved Premiere Pro integration, EPUB import, optimizations to annotation widgets...*
 * Overhauled **Premiere Pro drag and drop integration**
-  * New system is more accurate and useful
+  * New system is more accurate and more user friendly
 * Enhanced **drag and drop in Premiere** functionality
   * Can handle annotations that have text segments split up and divided by strikethroughs in an intuitive way
 * New **importer** feature available
@@ -11,14 +11,15 @@
 * Optimizations to **add_item_with_checkbox** `QWidgets`
   * Notably `QLineEdit` notes replaced with `QLabel` - doubleclick for `QLineEdit`
   * Removed broken caching system and more
-  * Fixed updateItemSize bugs that caused annotations out of scroll area to not resize properly
 * Fixed another bug where **double click handler** wasn't being added to a span after annotation splitting
 * **EPUB importing process** improved
   * Can now analyze HTML header tags, and user can make decision on how to handle each tag
-  * Also fixed some bugs that led to failed header/section divider application
+  * Also fixed some bugs that were causing wrong results during import
 * **Ask Gemini (Annotations)** now respects filtering in the theme view
-  * You can narrow annotation list that Gemini works with
-* Improved prompt in **Generate Notes**
+  * You can narrow annotation list that Gemini works with and accepts title and description input
+* **Generate Notes** improvements
+  * Improved prompt, respects filters, can select annotations and generate notes in a more targeted way
+  * Title and description can now be saved and persist across sessions
 * Fixed bug where **"Find"** was not functioning anymore in the **Headers List** within the transcript creator
 
 ### **v3.5.1**
