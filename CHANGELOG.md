@@ -3,7 +3,7 @@
 ### **v3.5.2**
 *Focus: Premiere Pro integration overhaul and workflow improvements.*
 * Overhauled **Premiere Pro drag and drop integration**
-  * New system is more accurate and more user friendly
+  * New system is more accurate and useful
 * Enhanced **drag and drop in Premiere** functionality
   * Can handle annotations that have text segments split up and divided by strikethroughs in an intuitive way
 * New **importer** feature available
