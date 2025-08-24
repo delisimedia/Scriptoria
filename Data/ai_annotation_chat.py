@@ -7,12 +7,13 @@ with clickable annotation references.
 """
 
 import json
+import os
 import re
 from datetime import datetime
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, 
                              QGroupBox, QComboBox, QPushButton, QProgressBar,
                              QMessageBox, QFormLayout, QApplication, QCheckBox,
-                             QSplitter, QFrame, QTextBrowser)
+                             QSplitter, QFrame, QTextBrowser, QLineEdit)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QUrl, QTimer
 from PyQt6.QtGui import QFont, QTextCursor, QTextCharFormat, QColor, QDesktopServices
 
@@ -178,6 +179,7 @@ class AIAnnotationChatDialog(QDialog):
         self.setup_ui()
         self.load_transcript()
         self.load_api_key()
+        self.load_transcript_data()
         self.load_annotations_data()
         
     def setup_ui(self):
@@ -197,6 +199,94 @@ class AIAnnotationChatDialog(QDialog):
         info_note.setWordWrap(True)
         info_note.setStyleSheet("padding: 10px; background-color: #f0f8ff; border-radius: 5px; margin-bottom: 10px;")
         layout.addWidget(info_note)
+        
+        # Collapsible transcript information section
+        transcript_container = QFrame()
+        transcript_container_layout = QVBoxLayout(transcript_container)
+        transcript_container_layout.setContentsMargins(0, 0, 0, 0)
+        transcript_container_layout.setSpacing(0)
+        
+        # Clickable header
+        self.transcript_header = QPushButton("📄 Transcript Information ▶")
+        self.transcript_header.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                border: none;
+                padding: 6px 10px;
+                background-color: transparent;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #f0f0f0;
+            }
+        """)
+        self.transcript_header.clicked.connect(self.toggle_transcript_section)
+        transcript_container_layout.addWidget(self.transcript_header)
+        
+        # Collapsible content
+        self.transcript_content = QFrame()
+        self.transcript_content.hide()  # Start collapsed
+        self.transcript_content.setStyleSheet("""
+            QFrame {
+                border: none;
+                background-color: transparent;
+                padding: 5px;
+            }
+        """)
+        transcript_layout = QFormLayout(self.transcript_content)
+        
+        self.transcript_title = QLineEdit()
+        self.transcript_title.setPlaceholderText("e.g., Interview with John Smith, Chapter 5: The Journey")
+        
+        title_label = QLabel("Title:")
+        title_label.setStyleSheet("border: none; background: transparent;")
+        transcript_layout.addRow(title_label, self.transcript_title)
+        
+        self.transcript_description = QTextEdit()
+        self.transcript_description.setMaximumHeight(50)
+        self.transcript_description.setPlaceholderText("Brief description of what this transcript contains...")
+        self.transcript_description.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                padding: 4px;
+                background-color: white;
+            }
+            QTextEdit:focus {
+                border: 1px solid #4a90e2;
+            }
+        """)
+        
+        desc_label = QLabel("Description:")
+        desc_label.setStyleSheet("border: none; background: transparent;")
+        transcript_layout.addRow(desc_label, self.transcript_description)
+        
+        # Compact save button
+        save_button_layout = QHBoxLayout()
+        self.save_transcript_button = QPushButton("💾 Save")
+        self.save_transcript_button.setMaximumWidth(80)
+        self.save_transcript_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f8f9fa;
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                padding: 2px 6px;
+                font-size: 10px;
+                color: #495057;
+            }
+            QPushButton:hover {
+                background-color: #e9ecef;
+                border-color: #adb5bd;
+            }
+        """)
+        self.save_transcript_button.clicked.connect(self.save_transcript_data)
+        save_button_layout.addWidget(self.save_transcript_button)
+        save_button_layout.addStretch()
+        transcript_layout.addRow("", save_button_layout)
+        
+        transcript_container_layout.addWidget(self.transcript_content)
+        layout.addWidget(transcript_container)
         
         # Configuration section
         config_layout = QHBoxLayout()
@@ -406,6 +496,93 @@ class AIAnnotationChatDialog(QDialog):
                 
         except Exception as e:
             print(f"Error loading API key: {e}")
+    
+    def load_transcript_data(self):
+        """Load persistent transcript data from session file (shared with Generate Notes)"""
+        try:
+            if not hasattr(self.main_window, 'current_session_file') or not self.main_window.current_session_file:
+                print("DEBUG: No session file available to load transcript data")
+                return
+            
+            session_file = self.main_window.current_session_file
+            if not os.path.exists(session_file):
+                print("DEBUG: Session file does not exist")
+                return
+            
+            # Load session data from file
+            with open(session_file, 'r', encoding='utf-8') as f:
+                session_data = json.load(f)
+            
+            # Load saved values from session data (same keys as Generate Notes)
+            title = session_data.get('ai_notes_title', '')
+            description = session_data.get('ai_notes_description', '')
+            
+            # Set UI values
+            self.transcript_title.setText(title)
+            self.transcript_description.setPlainText(description)
+            
+            print(f"DEBUG: Loaded transcript data from session - title: '{title}'")
+        except Exception as e:
+            print(f"Error loading transcript data: {e}")
+    
+    def save_transcript_data(self):
+        """Save transcript data directly to session file (shared with Generate Notes)"""
+        try:
+            if not hasattr(self.main_window, 'current_session_file') or not self.main_window.current_session_file:
+                print("DEBUG: No session file available to save transcript data")
+                return
+            
+            session_file = self.main_window.current_session_file
+            if not os.path.exists(session_file):
+                print("DEBUG: Session file does not exist")
+                return
+            
+            # Load current session data
+            with open(session_file, 'r', encoding='utf-8') as f:
+                session_data = json.load(f)
+            
+            # Update AI notes configuration fields (same keys as Generate Notes)
+            session_data['ai_notes_title'] = self.transcript_title.text().strip()
+            session_data['ai_notes_description'] = self.transcript_description.toPlainText().strip()
+            
+            # Atomic write using temporary file for safety
+            import tempfile
+            import shutil
+            
+            temp_file = None
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False, 
+                                               dir=os.path.dirname(session_file)) as tf:
+                    temp_file = tf.name
+                    json.dump(session_data, tf, indent=2, ensure_ascii=False)
+                
+                # Atomic replacement
+                if os.path.exists(session_file):
+                    os.remove(session_file)
+                shutil.move(temp_file, session_file)
+                temp_file = None
+                
+                print(f"DEBUG: Saved transcript data to session file - title: '{session_data['ai_notes_title']}'")
+                
+            finally:
+                if temp_file and os.path.exists(temp_file):
+                    os.remove(temp_file)
+                
+        except Exception as e:
+            print(f"Error saving transcript data: {e}")
+    
+    def toggle_transcript_section(self):
+        """Toggle the visibility of the transcript information section"""
+        is_visible = self.transcript_content.isVisible()
+        
+        if is_visible:
+            # Collapse
+            self.transcript_content.hide()
+            self.transcript_header.setText("📄 Transcript Information ▶")
+        else:
+            # Expand
+            self.transcript_content.show()
+            self.transcript_header.setText("📄 Transcript Information ▼")
             
     def _get_active_theme_search(self):
         """Get the active ThemeViewSearch instance from the main window"""
@@ -521,7 +698,18 @@ class AIAnnotationChatDialog(QDialog):
         annotations_context = self.build_annotations_context()
         include_transcript = self.include_transcript.isChecked()
         
+        # Get transcript information (always included)
+        transcript_title = self.transcript_title.text().strip()
+        transcript_description = self.transcript_description.toPlainText().strip()
+        
+        # Build transcript info section
+        transcript_info = "TRANSCRIPT INFORMATION:\n"
+        transcript_info += f"Title: {transcript_title if transcript_title else 'Not specified'}\n"
+        transcript_info += f"Description: {transcript_description if transcript_description else 'Not specified'}\n"
+        
         prompt = f"""You are an AI assistant helping users analyze and find specific annotations from their text analysis work in Scriptoria.
+
+{transcript_info}
 
 ABOUT SCRIPTORIA:
 Scriptoria is a text analysis and annotation tool. Users read through text documents and create "annotations" by highlighting important segments. Each annotation contains:

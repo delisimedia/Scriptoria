@@ -6,6 +6,7 @@ and automatically creates targeted highlights with themes and notes.
 """
 
 import json
+import os
 import re
 import uuid
 from datetime import datetime
@@ -32,10 +33,11 @@ class AIWorkerThread(QThread):
     error_occurred = pyqtSignal(str)
     retry_suggested = pyqtSignal(str)  # For suggesting retry on recoverable errors
     
-    def __init__(self, prompt, api_key, thinking_budget=None, max_retries=2):
+    def __init__(self, prompt, api_key, model="gemini-2.5-pro", thinking_budget=None, max_retries=2):
         super().__init__()
         self.prompt = prompt
         self.api_key = api_key
+        self.model = model
         self.thinking_budget = thinking_budget
         self.max_retries = max_retries
         
@@ -70,10 +72,10 @@ class AIWorkerThread(QThread):
                             thinking_budget=self.thinking_budget
                         )
                     
-                    print(f"DEBUG: Making API call to gemini-2.5-pro...")
+                    print(f"DEBUG: Making API call to {self.model}...")
                     # Generate response with streaming
                     response = client.models.generate_content(
-                        model="gemini-2.5-pro",
+                        model=self.model,
                         contents=self.prompt,
                         config=config
                     )
@@ -86,9 +88,9 @@ class AIWorkerThread(QThread):
                     print(f"DEBUG: Prompt length: {len(self.prompt)} characters")
                     
                     genai.configure(api_key=self.api_key)
-                    model = genai.GenerativeModel('gemini-2.5-pro')
+                    model = genai.GenerativeModel(self.model)
                     
-                    print(f"DEBUG: Making streaming API call to gemini-2.5-pro...")
+                    print(f"DEBUG: Making streaming API call to {self.model}...")
                     # Generate response with streaming (no thinking budget support)
                     response = model.generate_content(
                         self.prompt,
@@ -345,7 +347,7 @@ class AIAnnotationGenerator(QDialog):
         ai_layout = QFormLayout(ai_group)
         
         self.model_selector = QComboBox()
-        self.model_selector.addItems(["gemini-2.5-pro"])
+        self.model_selector.addItems(["gemini-2.5-pro", "gemini-2.5-flash"])
         ai_layout.addRow("Model:", self.model_selector)
         
         # Thinking budget
@@ -834,7 +836,8 @@ Only provide annotations in the specified format. No additional text or explanat
         
         # Start AI worker thread with thinking budget
         thinking_budget = self.thinking_budget.value()
-        self.worker_thread = AIWorkerThread(prompt, self.api_key, thinking_budget)
+        selected_model = self.model_selector.currentText()
+        self.worker_thread = AIWorkerThread(prompt, self.api_key, selected_model, thinking_budget)
         self.worker_thread.response_received.connect(self.handle_ai_response)
         self.worker_thread.chunk_received.connect(self.handle_ai_chunk)
         self.worker_thread.error_occurred.connect(self.handle_ai_error)
@@ -1165,14 +1168,16 @@ class AINotesGenerator(QDialog):
         self.annotations_with_partial_notes = []  # New: annotations with notes but no notes_html or vice versa
         self.full_transcript = ""
         self.api_key = ""
+        self.target_annotation_ids = None  # For targeted generation from right-click menu
         
         self.setWindowTitle("AI Generate Notes for Existing Annotations")
-        self.setModal(True)
+        self.setModal(False)  # Non-modal so users can continue working
         self.resize(1000, 850)  # Increased size for new UI elements
         
         self.setup_ui()
         self.load_transcript()
         self.load_api_key()
+        self.load_transcript_data()
         self.scan_annotations()
         
     def setup_ui(self):
@@ -1209,6 +1214,12 @@ class AINotesGenerator(QDialog):
         desc_group = QGroupBox("Transcript Information")
         desc_layout = QFormLayout(desc_group)
         
+        # Transcript type dropdown - moved to top
+        self.transcript_type = QComboBox()
+        self.transcript_type.addItems(["Video Editing Project", "Book/Article"])
+        self.transcript_type.currentTextChanged.connect(self.on_transcript_type_changed)
+        desc_layout.addRow("Transcript Type:", self.transcript_type)
+        
         self.transcript_title = QLineEdit()
         self.transcript_title.setPlaceholderText("e.g., Interview with John Smith, Chapter 5: The Journey")
         desc_layout.addRow("Title:", self.transcript_title)
@@ -1216,13 +1227,61 @@ class AINotesGenerator(QDialog):
         self.transcript_description = QTextEdit()
         self.transcript_description.setMaximumHeight(60)
         self.transcript_description.setPlaceholderText("Brief description of what this transcript contains...")
+        self.transcript_description.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                padding: 4px;
+                background-color: white;
+            }
+            QTextEdit:focus {
+                border: 1px solid #4a90e2;
+            }
+        """)
         desc_layout.addRow("Description:", self.transcript_description)
         
-        # Transcript type dropdown
-        self.transcript_type = QComboBox()
-        self.transcript_type.addItems(["Video Editing Project", "Book/Article"])
-        self.transcript_type.currentTextChanged.connect(self.on_transcript_type_changed)
-        desc_layout.addRow("Transcript Type:", self.transcript_type)
+        # Add compact save button
+        save_button_layout = QHBoxLayout()
+        self.save_config_button = QPushButton("💾 Save Configuration")
+        self.save_config_button.setMaximumWidth(150)
+        self.save_config_button.setStyleSheet("""
+            QPushButton {
+                background-color: #f8f9fa;
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 11px;
+                color: #495057;
+            }
+            QPushButton:hover {
+                background-color: #e9ecef;
+                border-color: #adb5bd;
+            }
+            QPushButton:pressed {
+                background-color: #dee2e6;
+            }
+        """)
+        self.save_config_button.clicked.connect(self.save_transcript_data)
+        save_button_layout.addWidget(self.save_config_button)
+        save_button_layout.addStretch()
+        desc_layout.addRow("", save_button_layout)
+        
+        # Additional context for AI
+        self.additional_context = QTextEdit()
+        self.additional_context.setMaximumHeight(80)
+        self.additional_context.setPlaceholderText("Additional context, instructions, or specific requirements for the AI to consider when generating notes...")
+        self.additional_context.setStyleSheet("""
+            QTextEdit {
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                padding: 4px;
+                background-color: white;
+            }
+            QTextEdit:focus {
+                border: 1px solid #4a90e2;
+            }
+        """)
+        desc_layout.addRow("Additional Context:", self.additional_context)
         
         context_layout.addWidget(desc_group)
         
@@ -1519,8 +1578,125 @@ class AINotesGenerator(QDialog):
         except Exception as e:
             print(f"Error loading API key: {e}")
             
+    def load_transcript_data(self):
+        """Load persistent transcript data from session file"""
+        try:
+            if not hasattr(self.main_window, 'current_session_file') or not self.main_window.current_session_file:
+                print("DEBUG: No session file available to load transcript data")
+                return
+            
+            session_file = self.main_window.current_session_file
+            if not os.path.exists(session_file):
+                print("DEBUG: Session file does not exist")
+                return
+            
+            # Load session data from file
+            with open(session_file, 'r', encoding='utf-8') as f:
+                session_data = json.load(f)
+            
+            # Load saved values from session data
+            title = session_data.get('ai_notes_title', '')
+            description = session_data.get('ai_notes_description', '')
+            additional_context = session_data.get('ai_notes_additional_context', '')
+            transcript_type = session_data.get('ai_notes_transcript_type', 'Video Editing Project')
+            
+            # Set UI values
+            self.transcript_title.setText(title)
+            self.transcript_description.setPlainText(description)
+            self.additional_context.setPlainText(additional_context)
+            
+            # Set transcript type
+            type_index = self.transcript_type.findText(transcript_type)
+            if type_index >= 0:
+                self.transcript_type.setCurrentIndex(type_index)
+            
+            print(f"DEBUG: Loaded transcript data from session - title: '{title}', type: '{transcript_type}'")
+        except Exception as e:
+            print(f"Error loading transcript data: {e}")
+    
+    def save_transcript_data(self):
+        """Save transcript data directly to session file"""
+        try:
+            if not hasattr(self.main_window, 'current_session_file') or not self.main_window.current_session_file:
+                print("DEBUG: No session file available to save transcript data")
+                return
+            
+            session_file = self.main_window.current_session_file
+            if not os.path.exists(session_file):
+                print("DEBUG: Session file does not exist")
+                return
+            
+            # Load current session data
+            with open(session_file, 'r', encoding='utf-8') as f:
+                session_data = json.load(f)
+            
+            # Update AI notes configuration fields
+            session_data['ai_notes_title'] = self.transcript_title.text().strip()
+            session_data['ai_notes_description'] = self.transcript_description.toPlainText().strip()
+            session_data['ai_notes_additional_context'] = self.additional_context.toPlainText().strip()
+            session_data['ai_notes_transcript_type'] = self.transcript_type.currentText()
+            
+            # Atomic write using temporary file for safety (same pattern as other session saves)
+            import tempfile
+            import shutil
+            
+            temp_file = None
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False, 
+                                               dir=os.path.dirname(session_file)) as tf:
+                    temp_file = tf.name
+                    json.dump(session_data, tf, indent=2, ensure_ascii=False)
+                
+                # Atomic replacement
+                if os.path.exists(session_file):
+                    os.remove(session_file)
+                shutil.move(temp_file, session_file)
+                temp_file = None
+                
+                print(f"DEBUG: Saved transcript data to session file - title: '{session_data['ai_notes_title']}', type: '{session_data['ai_notes_transcript_type']}'")
+                
+            finally:
+                if temp_file and os.path.exists(temp_file):
+                    os.remove(temp_file)
+                
+        except Exception as e:
+            print(f"Error saving transcript data: {e}")
+    
+    def set_target_annotations(self, annotation_ids):
+        """Set specific annotation IDs to target for notes generation (from right-click menu)"""
+        self.target_annotation_ids = annotation_ids
+        print(f"DEBUG: Set target annotations: {annotation_ids}")
+        
+        # Update window title to reflect targeted mode
+        count = len(annotation_ids)
+        if count == 1:
+            self.setWindowTitle("AI Generate Notes - 1 Selected Annotation")
+        else:
+            self.setWindowTitle(f"AI Generate Notes - {count} Selected Annotations")
+        
+        # Rescan annotations to only include targeted ones
+        self.scan_annotations()
+            
+    def get_theme_search(self):
+        """Get the ThemeViewSearch instance for filter checking"""
+        if not hasattr(self, 'main_window') or not self.main_window:
+            return None
+        
+        # Look for script_search attribute that contains ThemeViewSearch
+        current_parent = self.main_window
+        while current_parent:
+            if hasattr(current_parent, 'script_search'):
+                theme_search = current_parent.script_search
+                # Verify it's the right type and has the filtering method
+                if hasattr(theme_search, '_annotation_matches_current_filters'):
+                    return theme_search
+            current_parent = getattr(current_parent, 'parent', lambda: None)()
+        
+        print("DEBUG: Could not find ThemeViewSearch instance")
+        return None
+
     def scan_annotations(self):
-        """Scan existing annotations to find those without notes or with partial notes"""
+        """Scan existing annotations to find those without notes or with partial notes, respecting active filters"""
         if not self.web_view or not hasattr(self.web_view, 'annotations'):
             self.stats_label.setText("❌ No annotations found")
             return
@@ -1529,14 +1705,36 @@ class AINotesGenerator(QDialog):
         self.annotations_with_partial_notes = []
         total_annotations = len(self.web_view.annotations)
         skipped_dividers = 0
+        filtered_out = 0
+        
+        # Get theme search for filtering
+        theme_search = self.get_theme_search()
         
         print(f"DEBUG CATEGORIZATION: Processing {total_annotations} total annotations...")
+        if self.target_annotation_ids is not None:
+            print(f"DEBUG CATEGORIZATION: Targeting {len(self.target_annotation_ids)} specific annotations: {self.target_annotation_ids}")
+        elif theme_search:
+            print("DEBUG CATEGORIZATION: Will respect current filter settings")
+        else:
+            print("DEBUG CATEGORIZATION: No filtering - will process all annotations")
         
         for annotation in self.web_view.annotations:
             # Skip dividers - they are structural elements, not content annotations
             if annotation.get('divider'):
                 skipped_dividers += 1
                 continue
+            
+            # If we have target annotation IDs, only process those specific annotations
+            if self.target_annotation_ids is not None:
+                annotation_id = annotation.get('id')
+                if annotation_id not in self.target_annotation_ids:
+                    continue  # Skip annotations not in our target list
+            else:
+                # Apply current filters if theme search is available (only when not targeting specific annotations)
+                if theme_search and hasattr(theme_search, '_annotation_matches_current_filters'):
+                    if not theme_search._annotation_matches_current_filters(annotation):
+                        filtered_out += 1
+                        continue  # Skip filtered out annotations
                 
             # Check if annotation lacks notes or notes_html
             notes = annotation.get('notes', '').strip()
@@ -1566,15 +1764,27 @@ class AINotesGenerator(QDialog):
         count_without_notes = len(self.annotations_without_notes)
         count_partial_notes = len(self.annotations_with_partial_notes)
         content_annotations = total_annotations - skipped_dividers
+        filtered_annotations = content_annotations - filtered_out
         
         print(f"DEBUG CATEGORIZATION SUMMARY:")
+        print(f"  Total annotations: {total_annotations}")
+        print(f"  Skipped dividers: {skipped_dividers}")
         print(f"  Content annotations: {content_annotations}")
+        if filtered_out > 0:
+            print(f"  Filtered out: {filtered_out}")
+            print(f"  Visible (after filtering): {filtered_annotations}")
         print(f"  annotations_without_notes: {count_without_notes}")
         print(f"  annotations_with_partial_notes: {count_partial_notes}")
-        print(f"  annotations with both notes+notes_html: {content_annotations - count_without_notes - count_partial_notes}")
+        print(f"  annotations with both notes+notes_html: {filtered_annotations - count_without_notes - count_partial_notes}")
         
-        # Update stats label
-        stats_text = f"📊 Found {count_without_notes} annotations without notes/commentary, {count_partial_notes} with partial notes/commentary out of {content_annotations} content annotations"
+        # Update stats label with filter/targeting information
+        if self.target_annotation_ids is not None:
+            target_count = len(self.target_annotation_ids)
+            stats_text = f"🎯 Targeting {count_without_notes} annotations without notes/commentary, {count_partial_notes} with partial notes/commentary out of {target_count} selected annotations"
+        elif filtered_out > 0:
+            stats_text = f"📊 Found {count_without_notes} annotations without notes/commentary, {count_partial_notes} with partial notes/commentary out of {filtered_annotations} visible annotations ({filtered_out} filtered out)"
+        else:
+            stats_text = f"📊 Found {count_without_notes} annotations without notes/commentary, {count_partial_notes} with partial notes/commentary out of {content_annotations} content annotations"
         self.stats_label.setText(stats_text)
         
         # Update annotations display  
@@ -1627,6 +1837,7 @@ class AINotesGenerator(QDialog):
         transcript_type = self.transcript_type.currentText()
         transcript_title = self.transcript_title.text().strip()
         transcript_description = self.transcript_description.toPlainText().strip()
+        additional_context = self.additional_context.toPlainText().strip()
         target_filter = self.target_filter.toPlainText().strip()
         commentary_length = self.commentary_length_slider.value()
         
@@ -1751,6 +1962,7 @@ Budget: {thinking_budget} tokens for reasoning about content analysis.
 TRANSCRIPT INFORMATION:
 Title: {transcript_title if transcript_title else 'Not specified'}
 Description: {transcript_description if transcript_description else 'Not specified'}
+Additional Context: {additional_context if additional_context else 'Not specified'}
 
 {type_instructions}
 
@@ -1849,7 +2061,8 @@ Only provide notes in the specified format. No additional text or explanations."
         
         # Start AI worker thread
         thinking_budget = self.thinking_budget.value()
-        self.worker_thread = AIWorkerThread(prompt, self.api_key, thinking_budget)
+        selected_model = self.model_selector.currentText()
+        self.worker_thread = AIWorkerThread(prompt, self.api_key, selected_model, thinking_budget)
         self.worker_thread.response_received.connect(self.handle_ai_response)
         self.worker_thread.chunk_received.connect(self.handle_ai_chunk)
         self.worker_thread.error_occurred.connect(self.handle_ai_error)
@@ -2215,6 +2428,10 @@ Only provide notes in the specified format. No additional text or explanations."
         # Close dialog
         if successful_count > 0:
             self.accept()
+    
+    def closeEvent(self, event):
+        """Handle dialog close event"""
+        super().closeEvent(event)
             
     def update_annotation_notes_in_theme_view(self, annotation_id, brief_notes, detailed_notes):
         """Update notes display for a specific annotation in theme view"""
@@ -2232,12 +2449,58 @@ Only provide notes in the specified format. No additional text or explanations."
                     if item and item.data(Qt.ItemDataRole.UserRole) == annotation_id:
                         item_widget = list_widget.itemWidget(item)
                         if item_widget:
-                            # Update notes field (brief notes in the QLineEdit)
-                            from PyQt6.QtWidgets import QLineEdit
-                            notes_edit = item_widget.findChild(QLineEdit)
-                            if notes_edit:
-                                notes_edit.setText(brief_notes)
-                                print(f"DEBUG: Updated notes field to: '{brief_notes}'")
+                            # Update notes field (brief notes in the QLabel)
+                            from PyQt6.QtWidgets import QLabel
+                            notes_edit = item_widget.findChild(QLabel, "notes_edit")
+                            if notes_edit and hasattr(notes_edit, 'property'):
+                                # Use the set_notes_text method that was defined in add_item_with_checkbox
+                                notes_edit.setProperty('notes_text', brief_notes)
+                                
+                                # Convert markdown to plain text for display (same logic as add_item_with_checkbox)
+                                def markdown_to_display_text(text):
+                                    if not text:
+                                        return "Double-click to add footnote..."
+                                    import re
+                                    display_text = text
+                                    display_text = re.sub(r'\*\*(.*?)\*\*', r'\1', display_text)
+                                    display_text = re.sub(r'\*(.*?)\*', r'\1', display_text)
+                                    display_text = re.sub(r'`(.*?)`', r'\1', display_text)
+                                    return display_text
+                                
+                                display_text = markdown_to_display_text(brief_notes)
+                                notes_edit.setText(display_text)
+                                
+                                # Update styling based on content
+                                if not brief_notes:
+                                    notes_edit.setStyleSheet("""
+                                        QLabel {
+                                            border: 1px solid #e0e0e0;
+                                            background-color: white;
+                                            padding: 6px;
+                                            border-radius: 4px;
+                                            color: #aaa;
+                                            font-style: italic;
+                                        }
+                                        QLabel:hover {
+                                            border: 1px solid #ccc;
+                                            background-color: #f9f9f9;
+                                        }
+                                    """)
+                                else:
+                                    notes_edit.setStyleSheet("""
+                                        QLabel {
+                                            border: 1px solid #e0e0e0;
+                                            background-color: white;
+                                            padding: 6px;
+                                            border-radius: 4px;
+                                        }
+                                        QLabel:hover {
+                                            border: 1px solid #ccc;
+                                            background-color: #f9f9f9;
+                                        }
+                                    """)
+                                
+                                print(f"DEBUG: Updated notes QLabel to: '{brief_notes}'")
                             
                             # Update widget properties for notes_html
                             item_widget.setProperty('notes_html', detailed_notes)
