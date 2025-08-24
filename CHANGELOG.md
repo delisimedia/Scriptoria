@@ -1,7 +1,7 @@
 ## Changelog v3.X.X
 
 ### **v3.5.2**
-*Focus: Premiere Pro integration overhaul and workflow improvements.*
+*Improved Premiere Pro integration, EPUB import, optimizations to annotation widgets...*
 * Overhauled **Premiere Pro drag and drop integration**
   * New system is more accurate and more user friendly
 * Enhanced **drag and drop in Premiere** functionality
