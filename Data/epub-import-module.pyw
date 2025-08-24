@@ -48,6 +48,7 @@ class EPubImportDialog(QDialog):
         self.selected_chapters = set()  # Set to track selected chapters
         self.toc_path_map = {}       # Map TOC paths to content file paths
         self.epub_version = 2        # Default to EPUB2 version
+        self.header_treatment_settings = {}  # Store header treatment preferences
         
         # Set up the UI
         self.init_ui()
@@ -601,10 +602,52 @@ class EPubImportDialog(QDialog):
 
         footnotes_layout.addWidget(self.remove_footnotes_checkbox)
 
+        # HTML Header Analysis button
+        header_analysis_group = QWidget()
+        header_analysis_layout = QVBoxLayout(header_analysis_group)
+        header_analysis_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create a compact button layout
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.header_analysis_btn = QPushButton("HTML Header Analysis")
+        self.header_analysis_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #203740;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #2C4952;
+            }
+            QPushButton:pressed {
+                background-color: #1A5E5C;
+            }
+        """)
+        self.header_analysis_btn.clicked.connect(self.open_header_analysis)
+        
+        button_layout.addWidget(self.header_analysis_btn)
+        button_layout.addStretch()
+        
+        # Description
+        desc_label = QLabel("Analyze HTML headers in selected chapter and set formatting preferences")
+        desc_label.setStyleSheet("color: #666; font-size: 10px; font-style: italic;")
+        desc_label.setWordWrap(True)
+        
+        header_analysis_layout.addWidget(button_container)
+        header_analysis_layout.addWidget(desc_label)
+
         # Add all option groups
         options_layout.addWidget(text_group)
         options_layout.addWidget(verse_group)
         options_layout.addWidget(footnotes_group)
+        options_layout.addWidget(header_analysis_group)
 
         # Arrange the main layout
         format_layout.addWidget(header_widget)
@@ -642,6 +685,52 @@ class EPubImportDialog(QDialog):
             self.format_verses_checkbox.blockSignals(True)
             self.format_verses_checkbox.setChecked(False)
             self.format_verses_checkbox.blockSignals(False)
+    
+    def open_header_analysis(self):
+        """Open the HTML Header Analysis dialog for the current chapter"""
+        if not self.content_files:
+            QMessageBox.warning(self, "No Content", "Please open an EPUB file first.")
+            return
+            
+        if self.current_chapter_index < 0 or self.current_chapter_index >= len(self.content_files):
+            QMessageBox.warning(self, "No Chapter Selected", "Please select a chapter to analyze.")
+            return
+            
+        # Get the current chapter content
+        current_file = self.content_files[self.current_chapter_index]
+        
+        try:
+            with open(current_file, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to read chapter file:\n{str(e)}")
+            return
+        
+        # Get chapter title
+        chapter_title = self.get_chapter_title_for_path(current_file)
+        if not chapter_title:
+            chapter_title = f"Chapter {self.current_chapter_index + 1}"
+        
+        # Open the header analysis dialog
+        dialog = HTMLHeaderAnalysisDialog(self, html_content, chapter_title)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Store the header settings
+            settings = dialog.get_header_settings()
+            print(f"[DEBUG] Got settings from dialog: {settings}")
+            self.header_treatment_settings.update(settings)
+            print(f"[DEBUG] Updated header_treatment_settings to: {self.header_treatment_settings}")
+            
+            # Debug logging
+            logger.debug(f"Header treatment settings updated: {self.header_treatment_settings}")
+            
+            # Show confirmation
+            QMessageBox.information(
+                self, 
+                "Settings Applied", 
+                f"Header treatment settings have been applied and will be used when copying selected chapters.\n\n"
+                f"Settings: {', '.join([f'{k.upper()}: {v}' for k, v in settings.items()])}"
+            )
 
     def open_file_dialog(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -1123,6 +1212,7 @@ class EPubImportDialog(QDialog):
 
     def copy_selected_to_clipboard(self):
         """Copy the text content from all selected chapters directly to the parent text editor"""
+        print(f"[DEBUG] copy_selected_to_clipboard called, current header_treatment_settings: {self.header_treatment_settings}")
         if not self.selected_chapters:
             QMessageBox.warning(self, "No Selection", "Please select at least one chapter to copy.")
             return
@@ -1191,6 +1281,9 @@ class EPubImportDialog(QDialog):
                         content = f.read()
 
                     # Different processing based on view mode
+                    logger.debug(f"Processing chapter {i+1}: is_content_files_mode={is_content_files_mode}, header_settings={self.header_treatment_settings}")
+                    print(f"[DEBUG] Processing chapter {i+1}: is_content_files_mode={is_content_files_mode}")
+                    print(f"[DEBUG] Header treatment settings: {self.header_treatment_settings}")
                     if is_content_files_mode:
                         # Special handling for content files mode
                         processed_text = self.process_content_file_for_copy(
@@ -1896,6 +1989,7 @@ class EPubImportDialog(QDialog):
                                format_verses=True, remove_verses=False, remove_footnotes=True, 
                                fix_paragraphs=True, remove_duplicate_titles=True):
         """Extract and format text content from HTML with proper verse formatting."""
+        print(f"[DEBUG] extract_formatted_text called with header_treatment_settings: {self.header_treatment_settings}")
         try:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html_content, 'html.parser')
@@ -1909,40 +2003,140 @@ class EPubImportDialog(QDialog):
         
             # Special handling for content files mode
             if is_content_files_mode:
-                # For content files mode, don't remove headers but convert them to markdown
+                logger.debug(f"Content files mode: remove_duplicate_titles={remove_duplicate_titles}, header_treatment_settings={self.header_treatment_settings}")
+                
+                # First: Clean all headers by removing links but preserving text
+                logger.debug(f"Content files mode: Cleaning headers (removing links, preserving text)")
+                for header_tag in soup.find_all(['h1', 'h2', 'h3', 'h4']):
+                    # Remove all links from headers but keep the text content
+                    for link in header_tag.find_all('a'):
+                        link.unwrap()  # This removes the <a> tag but keeps the text
+                
+                # Second: Process headers based on settings or apply duplicate removal
+                print(f"[DEBUG] Content files mode: About to process headers with settings: {self.header_treatment_settings}")
                 headers_processed = set()  # Track processed headers to avoid duplicates
             
-                # Find all headers h1-h4 and convert them to markdown format
+                # Find all headers h1-h4 and convert them
                 for header_tag in soup.find_all(['h1', 'h2', 'h3', 'h4']):
                     header_text = header_tag.get_text().strip()
-                    if not header_text or header_text in headers_processed:
+                    if not header_text:
                         continue
                 
-                    # Add to processed set to avoid duplicates
+                    # Handle duplicates intelligently
+                    if header_text in headers_processed:
+                        if remove_duplicate_titles:
+                            logger.debug(f"Content files mode: Removing actual duplicate header: {header_text}")
+                            header_tag.decompose()
+                            continue
+                        else:
+                            # If not removing duplicates, still process them
+                            pass
+                    
+                    # Add to processed set to track duplicates
                     headers_processed.add(header_text)
+                    
+                    # Get treatment setting for this header type (or use default)
+                    header_type = header_tag.name.lower()
+                    treatment = self.header_treatment_settings.get(header_type, 'header')
+                    logger.debug(f"Content files mode: Processing {header_type} header '{header_text}' with treatment '{treatment}'")
                 
-                    # Convert header to markdown bold syntax
-                    new_tag = soup.new_tag('p')
-                    new_tag.string = f"**{header_text}**"
-                    header_tag.replace_with(new_tag)
+                    # Convert header based on treatment
+                    if treatment == 'ignore':
+                        # Replace with plain text, no special formatting
+                        new_tag = soup.new_tag('p')
+                        new_tag.string = header_text
+                        header_tag.replace_with(new_tag)
+                    elif treatment == 'section':
+                        new_tag = soup.new_tag('p')
+                        new_tag.string = f"[[{header_text}]]"
+                        header_tag.replace_with(new_tag)
+                    elif treatment == 'header':
+                        new_tag = soup.new_tag('p')
+                        new_tag.string = f"**{header_text}**"
+                        header_tag.replace_with(new_tag)
+                        print(f"[DEBUG] Replaced h2 header with: {new_tag}")
+                    else:
+                        # Default to header
+                        new_tag = soup.new_tag('p')
+                        new_tag.string = f"**{header_text}**"
+                        header_tag.replace_with(new_tag)
             
-            # Regular TOC mode - handle duplicate removal as before    
-            elif remove_duplicate_titles:
-                header_types = []
-                if self.h1_checkbox.isChecked():
-                    header_types.append('h1')
-                if self.h2_checkbox.isChecked():
-                    header_types.append('h2')
-                if self.h3_checkbox.isChecked():
-                    header_types.append('h3')
-                if self.h4_checkbox.isChecked():
-                    header_types.append('h4')
-        
-                if header_types:
-                    for header in soup.find_all(header_types):
-                        links = header.find_all('a')
-                        if links:
-                            header.decompose()
+            # Regular TOC mode - clean headers first, then apply treatment or duplicate removal
+            else:
+                # First: Clean all headers by removing links but preserving text
+                logger.debug(f"TOC mode: Cleaning headers (removing links, preserving text)")
+                for header_tag in soup.find_all(['h1', 'h2', 'h3', 'h4']):
+                    # Remove all links from headers but keep the text content
+                    for link in header_tag.find_all('a'):
+                        link.unwrap()  # This removes the <a> tag but keeps the text
+                
+                # Second: Apply custom header treatment settings (if they exist)
+                if self.header_treatment_settings:
+                    print(f"[DEBUG] TOC mode: Applying header treatment settings: {self.header_treatment_settings}")
+                    logger.debug(f"TOC mode: Applying header treatment settings: {self.header_treatment_settings}")
+                    headers_processed = set()  # Track processed headers to avoid duplicates
+                    
+                    # Process headers according to treatment settings
+                    for header_tag in soup.find_all(['h1', 'h2', 'h3', 'h4']):
+                        header_text = header_tag.get_text().strip()
+                        if not header_text:
+                            continue
+                        
+                        # Check for actual duplicates (same text content)
+                        if header_text in headers_processed:
+                            logger.debug(f"Removing actual duplicate header: {header_text}")
+                            header_tag.decompose()
+                            continue
+                        
+                        # Add to processed set to avoid duplicates
+                        headers_processed.add(header_text)
+                        
+                        # Get treatment setting for this header type
+                        header_type = header_tag.name.lower()
+                        treatment = self.header_treatment_settings.get(header_type, 'header')
+                        logger.debug(f"Processing {header_type} header '{header_text}' with treatment '{treatment}'")
+                        
+                        # Apply treatment
+                        if treatment == 'ignore':
+                            # Remove the header tag entirely
+                            header_tag.decompose()
+                        elif treatment == 'section':
+                            # Convert to section divider format
+                            new_tag = soup.new_tag('p')
+                            new_tag.string = f"[[{header_text}]]"
+                            header_tag.replace_with(new_tag)
+                        elif treatment == 'header':
+                            # Convert to header format
+                            new_tag = soup.new_tag('p')
+                            new_tag.string = f"**{header_text}**"
+                            header_tag.replace_with(new_tag)
+                
+                # Third: Apply legacy duplicate removal logic (if enabled and no custom treatment)
+                elif remove_duplicate_titles:
+                    logger.debug(f"TOC mode: Applying legacy duplicate removal based on content similarity")
+                    header_types = []
+                    if self.h1_checkbox.isChecked():
+                        header_types.append('h1')
+                    if self.h2_checkbox.isChecked():
+                        header_types.append('h2')
+                    if self.h3_checkbox.isChecked():
+                        header_types.append('h3')
+                    if self.h4_checkbox.isChecked():
+                        header_types.append('h4')
+            
+                    if header_types:
+                        headers_seen = set()
+                        for header in soup.find_all(header_types):
+                            header_text = header.get_text().strip().lower()
+                            if header_text in headers_seen:
+                                logger.debug(f"Removing duplicate header based on text: {header.get_text().strip()}")
+                                header.decompose()
+                            else:
+                                headers_seen.add(header_text)
+                                # Convert remaining headers to standard format
+                                new_tag = soup.new_tag('p')
+                                new_tag.string = f"**{header.get_text().strip()}**"
+                                header.replace_with(new_tag)
 
             # Process superscript elements according to options
             superscript_numbers = []
@@ -2004,14 +2198,21 @@ class EPubImportDialog(QDialog):
                         # If still nothing, get all text containers
                         if not p_tags:
                             p_tags = soup.body.find_all(['div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
-            
                 # Process the tags, tracking content to avoid duplication
                 processed_content = set()
             
                 for p in p_tags:
-                    text = p.get_text().strip()
+                    # Check if this is a formatted header and preserve it
+                    if p.name == 'p' and p.string and (p.string.startswith('**') or p.string.startswith('[[')):
+                        text = p.string.strip()
+                        print(f"[DEBUG] Found formatted header p tag: {text}")
+                    else:
+                        text = p.get_text().strip()
                     if not text:
+                        print(f"[DEBUG] Skipping empty text from tag: {p.name}")
                         continue
+                    
+                    print(f"[DEBUG] Processing text: {text[:50]}...")
                     
                     # Create a content signature to detect duplicates
                     # Only use first 50 chars to catch near-duplicates
@@ -2019,6 +2220,11 @@ class EPubImportDialog(QDialog):
                 
                     if content_sig not in processed_content:
                         processed_content.add(content_sig)
+                        print(f"[DEBUG] Content signature added: {content_sig[:30]}...")
+                        
+                        # Debug: Check if this is a formatted header before processing
+                        if text.startswith('**') and text.endswith('**'):
+                            print(f"[DEBUG] Processing formatted header: {text}")
                     
                         # Apply verse formatting if needed
                         if format_verses:
@@ -2032,7 +2238,12 @@ class EPubImportDialog(QDialog):
                             text = re.sub(r'\[\d{1,3}\](\s*)', '', text)
 
                         if remove_footnotes:
-                            text = re.sub(r'[\*\†\‡\§\|\¶\#]', '', text)
+                            # Preserve ** header formatting while removing other footnote markers
+                            if not (text.startswith('**') and text.endswith('**')):
+                                text = re.sub(r'[\*\†\‡\§\|\¶\#]', '', text)
+                            else:
+                                # For headers, only remove non-asterisk footnote markers
+                                text = re.sub(r'[\†\‡\§\|\¶\#]', '', text)
                             text = re.sub(r'[\[\(]([a-z])[\]\)]', '', text)
                             text = re.sub(r'<sup>([a-z0-9]{1,3})</sup>', '', text)
                             text = re.sub(r'(\s)([a-z])(\s|[.,;:])', r'\1\3', text)
@@ -2040,16 +2251,44 @@ class EPubImportDialog(QDialog):
                             text = re.sub(r'([a-z],)([a-z])(\s|[.,;:])', r'\1\3', text)
                             text = re.sub(r'([a-z]\d+)(\s|[.,;:])', r'\2', text)
 
-                        # Clean up HTML tags and whitespace
-                        text = re.sub(r'<[^>]*>', '', text)
+                        # Debug: Check text before HTML tag removal
+                        if '**' in text:
+                            print(f"[DEBUG] Text before HTML removal: {text[:100]}")
+                        
+                        # Preserve content inside p tags with ** formatting, then clean up HTML tags
+                        text = re.sub(r'<p>(\*\*[^<]*\*\*)</p>', r'\1', text)  # Extract **Header** from <p> tags
+                        text = re.sub(r'<[^>]*>', '', text)  # Remove remaining HTML tags
                         text = re.sub(r'\s+', ' ', text)
                         text = text.strip()
+                        
+                        # Debug: Check text after HTML removal
+                        if '**' in text:
+                            print(f"[DEBUG] Text after HTML removal: {text[:100]}")
 
                         if text:
                             paragraphs.append(text)
+                            if '**' in text:
+                                print(f"[DEBUG] Added formatted text to paragraphs: {text[:50]}...")
+                        else:
+                            print(f"[DEBUG] Text was empty after processing, not added to paragraphs")
             else:
-                # Fallback if no body tag - extract all text
-                text = soup.get_text().strip()
+                # Fallback if no body tag - extract text but preserve formatted headers
+                # First extract formatted headers separately
+                formatted_elements = []
+                all_p_tags = soup.find_all('p')
+                for p in all_p_tags:
+                    if p.string and (p.string.startswith('**') or p.string.startswith('[[')):
+                        formatted_elements.append(p.string.strip())
+                    else:
+                        p_text = p.get_text().strip()
+                        if p_text:
+                            formatted_elements.append(p_text)
+                
+                if formatted_elements:
+                    text = '\n\n'.join(formatted_elements)
+                else:
+                    # Final fallback - extract all text
+                    text = soup.get_text().strip()
             
                 # Apply the same formatting options
                 if format_verses:
@@ -2078,8 +2317,8 @@ class EPubImportDialog(QDialog):
         
             if is_content_files_mode:
                 # In content files mode, we already processed headers, so only add chapter title 
-                # if it's not going to be redundant with the first header
-                if add_headers and chapter_title and not any(chapter_title in p for p in paragraphs[:3]):
+                # if it's not going to be redundant with the first header AND we don't have custom treatments
+                if add_headers and chapter_title and not self.header_treatment_settings and not any(chapter_title in p for p in paragraphs[:3]):
                     if self.handle_subchapters_checkbox.isChecked() and self.is_main_chapter(chapter_path):
                         chapter_text.append(f"[[{chapter_title}]]\n\n")
                     else:
@@ -2087,13 +2326,18 @@ class EPubImportDialog(QDialog):
             else:
                 # Standard TOC mode behavior
                 if add_headers and chapter_title:
-                    if self.handle_subchapters_checkbox.isChecked() and self.is_main_chapter(chapter_path):
-                        chapter_text.append(f"[[{chapter_title}]]\n\n")
-                    else:
-                        chapter_text.append(f"**{chapter_title}**\n\n")
+                    # Only add auto-generated chapter titles if we don't have custom header treatments
+                    if not self.header_treatment_settings:
+                        if self.handle_subchapters_checkbox.isChecked() and self.is_main_chapter(chapter_path):
+                            chapter_text.append(f"[[{chapter_title}]]\n\n")
+                        else:
+                            chapter_text.append(f"**{chapter_title}**\n\n")
+                    # If we have custom header treatments, the headers are already processed in the content
 
             if paragraphs:
-                chapter_text.append("\n\n".join(paragraphs))
+                joined_paragraphs = "\n\n".join(paragraphs)
+                print(f"[DEBUG] Joined paragraphs has {joined_paragraphs.count('**')} asterisks")
+                chapter_text.append(joined_paragraphs)
 
             result = "\n\n".join(chapter_text)
 
@@ -2105,6 +2349,11 @@ class EPubImportDialog(QDialog):
             if fix_paragraphs:
                 result = re.sub(r'\n{3,}', '\n\n', result)
 
+            print(f"[DEBUG] extract_formatted_text returning text with {result.count('**')} asterisks")
+            if result.count('**') == 0:
+                import traceback
+                print("[DEBUG] TRACEBACK - No asterisks found in final text:")
+                traceback.print_stack()
             return result
         except Exception as e:
             logger.error(f"Error extracting formatted text: {str(e)}")
@@ -2114,6 +2363,7 @@ class EPubImportDialog(QDialog):
     def process_content_file_for_copy(self, html_content, path, format_verses=True, 
                                       remove_verses=False, remove_footnotes=True, fix_paragraphs=True):
         """Process HTML content file for copying, with special handling for headers."""
+        print(f"[DEBUG] process_content_file_for_copy called with header_treatment_settings: {self.header_treatment_settings}")
         try:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html_content, 'html.parser')
@@ -2164,9 +2414,21 @@ class EPubImportDialog(QDialog):
                 
                     # Format text based on element type
                     if is_header:
-                        # Format as markdown style header
-                        paragraphs.append(f"**{text}**")
-                        logger.debug(f"Formatted header: {text}")
+                        # Get treatment setting for this header type
+                        header_type = element.name.lower()
+                        treatment = self.header_treatment_settings.get(header_type, 'header')
+                        
+                        # Format based on treatment
+                        if treatment == 'section':
+                            paragraphs.append(f"[[{text}]]")
+                        elif treatment == 'header':
+                            paragraphs.append(f"**{text}**")
+                        elif treatment == 'ignore':
+                            paragraphs.append(text)  # No special formatting
+                        else:
+                            paragraphs.append(f"**{text}**")  # Default to header
+                        
+                        logger.debug(f"Formatted header ({treatment}): {text}")
                     else:
                         # Apply verse formatting if needed
                         if format_verses:
@@ -2219,3 +2481,233 @@ class EPubImportDialog(QDialog):
             logger.error(f"Error processing content file for copy: {str(e)}")
             traceback.print_exc()
             return f"[Error processing file {os.path.basename(path)}]"
+
+
+class HTMLHeaderAnalysisDialog(QDialog):
+    """Dialog for analyzing HTML header tags and setting their treatment"""
+    
+    def __init__(self, parent=None, html_content="", chapter_title="Current Chapter"):
+        super().__init__(parent)
+        self.html_content = html_content
+        self.chapter_title = chapter_title
+        self.header_settings = {}  # Store settings for each header type
+        
+        # Initialize default header settings
+        self.default_settings = {
+            'h1': 'header',
+            'h2': 'header', 
+            'h3': 'header',
+            'h4': 'header'
+        }
+        
+        self.init_ui()
+        self.analyze_headers()
+        
+    def init_ui(self):
+        self.setWindowTitle("HTML Header Tag Analysis")
+        self.setMinimumSize(500, 400)
+        self.setModal(True)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
+        
+        # Title
+        title_label = QLabel(f"Header Analysis: {self.chapter_title}")
+        title_label.setStyleSheet("""
+            font-size: 16px;
+            font-weight: bold;
+            color: #203740;
+            margin-bottom: 10px;
+        """)
+        
+        # Description
+        desc_label = QLabel("Choose how to treat each header type found in this chapter:")
+        desc_label.setStyleSheet("color: #666; font-size: 12px; margin-bottom: 15px;")
+        desc_label.setWordWrap(True)
+        
+        layout.addWidget(title_label)
+        layout.addWidget(desc_label)
+        
+        # Scroll area for header options
+        scroll = QTextEdit()
+        scroll.setMaximumHeight(250)
+        scroll.setReadOnly(True)
+        scroll.setStyleSheet("""
+            QTextEdit {
+                background-color: #f8f9fa;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                padding: 10px;
+            }
+        """)
+        self.header_display = scroll
+        
+        layout.addWidget(scroll)
+        
+        # Header treatment options
+        options_frame = QFrame()
+        options_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        options_frame.setStyleSheet("""
+            QFrame {
+                background-color: #f5f8fa;
+                border: 1px solid #dde4e9;
+                border-radius: 4px;
+                padding: 10px;
+            }
+        """)
+        
+        options_layout = QVBoxLayout(options_frame)
+        
+        # Create header type controls
+        self.header_controls = {}
+        
+        layout.addWidget(options_frame)
+        self.options_layout = options_layout
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        apply_btn = QPushButton("Apply Settings")
+        apply_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #203740;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 5px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #2C4952;
+            }
+        """)
+        apply_btn.clicked.connect(self.accept)
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #203740;
+                border: 1px solid #203740;
+                padding: 8px 16px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #f5f5f5;
+            }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        
+        button_layout.addStretch()
+        button_layout.addWidget(apply_btn)
+        button_layout.addWidget(cancel_btn)
+        
+        layout.addLayout(button_layout)
+    
+    def analyze_headers(self):
+        """Analyze the HTML content for header tags"""
+        if not self.html_content:
+            self.header_display.setHtml("<p>No content available for analysis.</p>")
+            return
+            
+        try:
+            soup = BeautifulSoup(self.html_content, 'html.parser')
+            
+            # Find first 3 instances of each header type
+            header_analysis = {}
+            
+            for level in ['h1', 'h2', 'h3', 'h4']:
+                headers = soup.find_all(level)[:3]  # Get first 3
+                if headers:
+                    header_analysis[level] = [h.get_text().strip() for h in headers if h.get_text().strip()]
+                    logger.debug(f"Found {len(header_analysis[level])} {level.upper()} headers: {header_analysis[level]}")
+            
+            # Display analysis results
+            html_content = "<h3>Header Tags Found:</h3>"
+            
+            if not header_analysis:
+                html_content += "<p><i>No header tags (H1-H4) found in this chapter.</i></p>"
+            else:
+                for level, headers in header_analysis.items():
+                    if headers:
+                        html_content += f"<p><b>{level.upper()} Tags:</b></p><ul>"
+                        for header in headers:
+                            html_content += f"<li>{html.escape(header)}</li>"
+                        html_content += "</ul>"
+                        
+                        # Create controls for this header type
+                        self.create_header_controls(level, headers)
+            
+            self.header_display.setHtml(html_content)
+            
+        except Exception as e:
+            logger.error(f"Error analyzing headers: {e}")
+            self.header_display.setHtml(f"<p>Error analyzing headers: {str(e)}</p>")
+    
+    def create_header_controls(self, header_type, sample_headers):
+        """Create radio button controls for a header type"""
+        group_widget = QWidget()
+        group_layout = QVBoxLayout(group_widget)
+        group_layout.setContentsMargins(0, 5, 0, 10)
+        
+        # Header type label
+        type_label = QLabel(f"{header_type.upper()} Treatment:")
+        type_label.setStyleSheet("font-weight: bold; color: #203740;")
+        
+        # Radio buttons layout
+        radio_layout = QHBoxLayout()
+        
+        # Section Divider option
+        section_radio = QCheckBox("[[Section Divider]]")
+        section_radio.setStyleSheet("color: #B8860B; font-weight: bold;")  # Gold color
+        section_radio.setToolTip("Format as section divider (gold highlighting)")
+        
+        # Header option  
+        header_radio = QCheckBox("**Header**")
+        header_radio.setStyleSheet("color: #4169E1; font-weight: bold;")  # Blue color
+        header_radio.setToolTip("Format as regular header (blue highlighting)")
+        header_radio.setChecked(True)  # Default selection
+        
+        # Ignore option
+        ignore_radio = QCheckBox("IGNORE")
+        ignore_radio.setToolTip("Apply no special formatting")
+        
+        # Make them mutually exclusive
+        section_radio.toggled.connect(lambda checked, r=header_radio, i=ignore_radio: (r.setChecked(False), i.setChecked(False)) if checked else None)
+        header_radio.toggled.connect(lambda checked, s=section_radio, i=ignore_radio: (s.setChecked(False), i.setChecked(False)) if checked else None)
+        ignore_radio.toggled.connect(lambda checked, s=section_radio, h=header_radio: (s.setChecked(False), h.setChecked(False)) if checked else None)
+        
+        radio_layout.addWidget(section_radio)
+        radio_layout.addWidget(header_radio)
+        radio_layout.addWidget(ignore_radio)
+        radio_layout.addStretch()
+        
+        group_layout.addWidget(type_label)
+        group_layout.addLayout(radio_layout)
+        
+        # Store controls for later access
+        self.header_controls[header_type] = {
+            'section': section_radio,
+            'header': header_radio,
+            'ignore': ignore_radio
+        }
+        
+        self.options_layout.addWidget(group_widget)
+    
+    def get_header_settings(self):
+        """Get the current header treatment settings"""
+        settings = {}
+        
+        for header_type, controls in self.header_controls.items():
+            if controls['section'].isChecked():
+                settings[header_type] = 'section'
+            elif controls['header'].isChecked():
+                settings[header_type] = 'header'
+            elif controls['ignore'].isChecked():
+                settings[header_type] = 'ignore'
+            else:
+                settings[header_type] = 'header'  # Default
+        
+        logger.debug(f"Header analysis dialog returning settings: {settings}")
+        return settings
