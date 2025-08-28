@@ -1,5 +1,5 @@
    <div align="center">
-     <img src="Img/splash-screen.png" alt="Splash Screen of Scriptoria" width="300" height="300">
+     <img src="Img/banner.png" alt="Splash Screen of Scriptoria" width="600" height="300">
    </div>
 
 # Scriptoria: AI Integrated Text-Based Video Editing Companion and versatile EReader.
