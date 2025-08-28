@@ -18,11 +18,11 @@ In addition to its video-production-tailored feature set, Scriptoria has also be
   <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
 </div>
 
-## What it solves
+## What video editing challenge it tackles
 
-For video editors working with interviews, documentaries, or event footage, the process of finding the right soundbites ("paper editing") can be slow and cumbersome. It often involves scrubbing through hours of footage. Video editors, like Adobe Premiere Pro are designed around video editing and as such the ability to structure narratives within the program is weighed down by a UI and UX that is designed to interact with video first and foremost. Not only that it is CPU and GPU intensive. Scriptoria circumvents that overhead and is designed to develop scripts and narrative in a more intuitive way.
+For video editors working with interviews, documentaries, or event footage, the process of finding the right soundbites ("paper editing") can be slow and cumbersome. It often involves scrubbing through hours of footage. NLE video editors are naturally designed to work with video as the principle element and as such the ability to structure narratives within the program is weighed down by a UI and UX that is suited for video. Not only that it is CPU and GPU intensive. Scriptoria circumvents that overhead and is designed to develop scripts and narrative in an intuitive text-based way. 
 
-Scriptoria streamlines this by allowing you to work with the transcript as the central element, giving you a bird's-eye view of your content and enabling you to build a story structure quickly and intuitively.
+Scriptoria streamlines this by allowing you to work with the transcript as the central element, giving you a bird's-eye view of your content and enabling you to build a story structure efficiently. Theme-based highlighting, tagging, note-taking, drag/drop script creation, and AI features help keep your thoughts and ideas organized and structured.
 
 ## Core workflow for video editors:
 
