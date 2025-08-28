@@ -1,5 +1,5 @@
    <div align="center">
-     <img src="Img/banner.png" alt="Splash Screen of Scriptoria" width="1000" height="200">
+     <img src="Img/banner.png" alt="Splash Screen of Scriptoria" width="1000" height="300">
    </div>
 
 ## Featuring a theme-based highlighting system, tagging, note-taking, and script organization with drag/drop Adobe Premiere Pro integration and built-in Gemini API.
