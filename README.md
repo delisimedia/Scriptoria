@@ -13,7 +13,7 @@ Secondarily it is also a versatile tool for reading and marking up any long-form
 
 In addition to its video-production-tailored feature set, Scriptoria has also been designed so that the reader can utilize it as a scholarly aide to the text. The theme-based highlighting, tagging, and note-taking systems make for a robust interactive e-reader. Additionally, the Gemini API integration allows you to ask questions to Gemini about any selected text instantly without leaving the program.
 
-Currently Scriptoria is Windows only, and does not have mobile support.
+Currently Scriptoria is Windows and desktop only
 
 <div style="text-align: center;">
   <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
