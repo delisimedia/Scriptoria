@@ -9,7 +9,7 @@ Scriptoria is primarily designed to create a text-based workflow for video edito
 
 **What is theme-based highlighting?** Theme-based highlighting refers to the central workflow of Scriptoria, where the user can create theme names and assign them to specific highlight colors. You can then use these colors/themes to organize your transcript/book accordingly. You can then easily refer back to your highlights by their themes.
 
-Secondarily it is also a versatile tool for reading and marking up any long-form document like books and articles. It features a streamlined import process for EPUB files and will automatically attempt to format any text you copy from the internet. Text is formatted via a simple syntax system that Scriptoria recognizes, with the ability for the user to manually format the text if automation techniques fail for a particular docuemnt. 
+Secondarily it is also a versatile tool for reading and marking up any long-form document like books and articles. It features a streamlined import process for EPUB files and will automatically attempt to format any text you copy from the internet. Text is formatted via a simple syntax system that Scriptoria recognizes, with the ability for the user to manually format the text if automation techniques fail for a particular document. 
 
 In addition to its video-production tailored feature-set, Scriptoria has also been designed so that it can be utilized by the reader as an academic aide to reading. The theem-based highlighting, tagging, and note-taking systems make for a robust interactive e-reader. Additionally, the Gemini API integration allows you to ask questions to Gemini about any selected text instantly without leaving the program.
 
