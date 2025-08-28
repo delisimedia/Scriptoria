@@ -25,8 +25,6 @@ For video editors working with interviews, documentaries, or event footage, the 
 
 Scriptoria streamlines this by allowing you to work with the transcript as the central element, giving you a bird's-eye view of your content and enabling you to build a story structure quickly and intuitively.
 
-As an E-Reader it creates a platform that allows you to organize and categorize your text highlighting according to user-created theems - a feature absent in many EReaders (like Kindle).
-
 ## Core workflow for video editors:
 
 1.  **Process & Stylize Transcript:** Start with any text source. For video-editing, generate a caption text file in Adobe Premiere Pro (for example) and paste these captions into the Process Captions tab. Process it by using the program provided prompt in an LLM of your choosing or directly in software with the integrated **Gemini API** to automatically structure the captions into Scriptoria's accepted syntax formatting. You can also import text from **EPUBs** or from the internet, and Scriptoria will automatically format based on the embedded HTML or Markdown tags in the epub file or clipboard. Default prompts are provided, and a system is in place for you to write and store your own custom preset prompts.
