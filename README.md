@@ -2,7 +2,7 @@
      <img src="Img/banner.png" alt="Splash Screen of Scriptoria" width="1000" height="250">
    </div>
 
-## Featuring a theme-based highlighting system, tagging, note-taking, and script organization with drag/drop Adobe Premiere Pro integration and built-in Gemini API.
+## Featuring a theme-based highlighting system, tagging, note-taking, and script creation with drag/drop Adobe Premiere Pro integration and built-in Gemini API.
 
 Scriptoria is primarily designed to create a text-based workflow for video editors that involves using an LLM to structure video captions into an interactive HTML text transcript. The transcript can then be marked up and arranged into a script to aide with video outlining and narrative structuring via theme-based highlighting, tagging, and note taking. There is functionality that allows for your script to easily link back with captions in Adobe Premiere Pro, and a customized Gemini API assistant. There is also a robust filtering system to make it easy to find and locate specific highlights according to theme, tags, favorite, and used (whether it has been used yet in the video) status.
 
