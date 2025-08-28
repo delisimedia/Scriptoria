@@ -1,5 +1,18 @@
 ## Changelog v3.X.X
 
+### **v3.5.3**
+*Focus: File handling improvements and theme view enhancements.*
+* Changed main **`.session`** files to extension **`.scriptoria`**
+* You can now **double click `.scriptoria` files** and open the transcript directly from file explorer
+* Added **copy text option** to theme view widgets
+* Added **Find in Transcript option** to theme view widget context menu
+* Added **'More Info'** to theme view widget context menu
+  * Useful for debugging
+* Fixed bug where **text labels** were getting incorrectly resized after deleting an annotation from the script editor
+* **Remove Annotation** in the script editor now properly marks changes pending
+* **Add Full Text Transcription** now accepts **`.srt`** files
+* New **splash screen image**
+
 ### **v3.5.2**
 *Improved Premiere Pro integration, EPUB import, optimizations to annotation widgets...*
 * Overhauled **Premiere Pro drag and drop integration**
