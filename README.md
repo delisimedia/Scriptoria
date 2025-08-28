@@ -12,7 +12,7 @@ Secondarily it is also a versatile tool for reading and marking up any long-form
 Currently Scriptoria is Windows only, and does not have mobile support.
 
 <div style="text-align: center;">
-  <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
+  <img src="banner.png" width="1560" height="720" alt="Scriptoria Logo Banner">
 </div>
 
 ## What it solves
