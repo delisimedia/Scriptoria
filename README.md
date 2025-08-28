@@ -22,7 +22,7 @@ In addition to its video-production-tailored feature set, Scriptoria has also be
 
 For video editors working with interviews, documentaries, or event footage, the process of finding the right soundbites ("paper editing") can be slow and cumbersome. It often involves scrubbing through hours of footage. NLE video editors are naturally designed to work with video as the principle element and as such the ability to structure narratives within the program is weighed down by a UI and UX that is suited for video. Not only that it is CPU and GPU intensive. Scriptoria circumvents that overhead and is designed to develop scripts and narrative in an intuitive text-based way. 
 
-Scriptoria streamlines this by allowing you to work with the transcript as the central element, giving you a bird's-eye view of your content and enabling you to build a story structure efficiently. Theme-based highlighting, tagging, note-taking, drag/drop script creation, and AI features help keep your thoughts and ideas organized and structured.
+Scriptoria streamlines this by allowing you to work with the transcript as the central element, giving you a bird's-eye view of your content and enabling you to build a story structure efficiently. Theme-based highlighting, tagging, note-taking, drag/drop script creation, and AI chat integration help keep your thoughts and ideas organized and structured so you can build narratives efficiently and better. 
 
 ## Core workflow for video editors:
 
