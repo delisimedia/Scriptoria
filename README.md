@@ -1,7 +1,7 @@
    <div align="center">
      <img src="Img/banner.png" alt="Splash Screen of Scriptoria" width="1000" height="250">
    </div>
-
+# Scriptoria: Script Organizer for Video Editing and Interactive E-Reader
 ## Featuring a theme-based highlighting system, tagging, note-taking, and script creation with drag/drop Adobe Premiere Pro integration and built-in Gemini API.
 
 <div style="text-align: center;">
