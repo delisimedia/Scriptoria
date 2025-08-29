@@ -4,6 +4,11 @@
 
 ## Featuring a theme-based highlighting system, tagging, note-taking, and script creation with drag/drop Adobe Premiere Pro integration and built-in Gemini API.
 
+<div style="text-align: center;">
+  <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
+</div>
+
+
 Scriptoria is primarily designed to create a text-based workflow for video editors that involves using an LLM to structure video captions into an interactive HTML text transcript. The transcript can then be marked up and arranged into a script to aide with video outlining and narrative structuring via theme-based highlighting, tagging, and note taking. There is functionality that allows for your script to easily link back with captions in Adobe Premiere Pro, and a customized Gemini API assistant. There is also a robust filtering system to make it easy to find and locate specific highlights according to theme, tags, favorite, and used (whether it has been used yet in the video) status.
 
 **What is theme-based highlighting?** Theme-based highlighting refers to the central workflow of Scriptoria, where the user can create theme names and assign them to specific highlight colors. You can then use these colors/themes to organize your transcript/book accordingly. You can then easily refer back to your highlights by their themes.
@@ -14,9 +19,7 @@ In addition to its video-production-tailored feature set, Scriptoria has also be
 
 **Currently, Scriptoria is Windows and desktop only**
 
-<div style="text-align: center;">
-  <img src="screenshot.png" width="1280" height="720" alt="Screenshot">
-</div>
+
 
 ## What video editing challenge it tackles
 
