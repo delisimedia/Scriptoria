@@ -19,7 +19,7 @@ In addition to its video-production-tailored feature set, Scriptoria has also be
 
 **Currently, Scriptoria is Windows and desktop only**
 
-![Demo](output.gif)
+![Demo](scriptoria_demo.gif)
 
 ## What video editing challenge it tackles
 
